@@ -1,9 +1,15 @@
-import React from 'react'
+import React from "react";
+import { AuthLayout, BrandLogo } from "../../../core/components";
+import { SignUpForm } from "../components";
 
 export default function SignUp() {
   return (
-    <div>
-      <h1>Sign Up</h1>
-    </div>
-  )
+    <AuthLayout>
+      <BrandLogo
+        title="Create your account"
+        subtitle="Join us today and start your journey"
+      />
+      <SignUpForm />
+    </AuthLayout>
+  );
 }
