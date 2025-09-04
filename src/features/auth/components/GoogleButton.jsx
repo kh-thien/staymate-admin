@@ -1,8 +1,8 @@
 import React from "react";
 import { GoogleIcon } from "../../../core/components";
+import { useAuth } from "../context";
 
 export default function GoogleButton({
-  onClick,
   text,
   variant = "signin", // "signin", "signup", "continue", "custom"
   disabled = false,
@@ -10,6 +10,7 @@ export default function GoogleButton({
   size = "default", // "sm", "default", "lg"
   className = "",
 }) {
+  const { signInWithGoogle } = useAuth();
   const getButtonText = () => {
     if (loading) return "Loading...";
     if (text) return text; // Custom text override
@@ -40,7 +41,7 @@ export default function GoogleButton({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={signInWithGoogle}
       disabled={disabled || loading}
       className={`
         w-full bg-white border border-gray-300 text-gray-700 font-semibold rounded-xl 

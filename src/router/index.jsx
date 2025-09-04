@@ -5,11 +5,13 @@ import SignUp from "../features/auth/pages/Signup";
 import Dashboard from "../features/dashboard/pages/Dashboard";
 import Forgot from "../features/auth/pages/Forgot";
 import Intro from "../features/Intro/Intro";
+import ProtectedLayout from "./ProtectedLayout";
 
 const router = createBrowserRouter([
   {
     element: <AuthLayout />,
     children: [
+      // Public routes - không cần đăng nhập
       {
         path: "/",
         element: <Intro />,
@@ -23,12 +25,20 @@ const router = createBrowserRouter([
         element: <SignIn />,
       },
       {
-        path: "/dashboard",
-        element: <Dashboard />,
-      },
-      {
         path: "/forgot",
         element: <Forgot />,
+      },
+
+      // Reuiqred login routes - tất cả routes bên trong đều cần đăng nhập
+      {
+        element: <ProtectedLayout />,
+        children: [
+          {
+            path: "/dashboard",
+            element: <Dashboard />,
+          },
+
+        ],
       },
     ],
   },

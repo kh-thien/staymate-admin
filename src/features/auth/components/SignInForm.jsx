@@ -38,7 +38,7 @@ export default function SignInForm() {
   };
 
   const handleGoogleSignIn = () => {
-    console.log("Google sign in");
+   
   };
 
   return (
