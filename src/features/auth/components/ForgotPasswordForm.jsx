@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { InputField, Button } from "../../../core/components";
+import { AuthService } from "../services/AuthServices";
 
 export default function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
@@ -34,7 +35,7 @@ export default function ForgotPasswordForm() {
     try {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 2000));
-      console.log("Password reset email sent to:", email);
+      await AuthService.resetPassword(email);
       setIsSubmitted(true);
     } catch (error) {
       console.error("Error sending reset email:", error);

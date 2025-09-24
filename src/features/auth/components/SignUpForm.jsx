@@ -6,7 +6,8 @@ import {
   Divider,
   PasswordStrengthIndicator,
 } from "../../../core/components";
-import GoogleButton from "./GoogleButton";
+import GoogleButton from "./googleButton";
+import { useAuth } from "../context";
 
 export default function SignUpForm() {
   const [formData, setFormData] = useState({
@@ -17,7 +18,9 @@ export default function SignUpForm() {
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const { signUpWithEmailPassword, signInWithGoogle } = useAuth();
 
   const handleChange = (field) => (e) => {
     setFormData((prev) => ({
@@ -68,31 +71,52 @@ export default function SignUpForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setSuccessMessage(""); // Clear previous success message
 
     const newErrors = validateForm();
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length === 0) {
       try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        console.log("Registration Success:", {
+        console.log("Registration attempt:", {
           fullName: formData.fullName,
           email: formData.email,
           password: formData.password,
         });
-        // Here you would redirect to dashboard or email verification
+
+        const result = await signUpWithEmailPassword({
+          fullName: formData.fullName,
+          email: formData.email,
+          password: formData.password,
+        });
+
+        if (result.success) {
+          if (result.requiresConfirmation) {
+            setSuccessMessage(
+              result.message ||
+                "Please check your email to confirm your account."
+            );
+            // Reset form
+            setFormData({
+              fullName: "",
+              email: "",
+              password: "",
+              confirmPassword: "",
+            });
+            setAcceptTerms(false);
+          } else {
+            setSuccessMessage("Registration successful! Redirecting...");
+          }
+        }
       } catch (error) {
         console.error("Registration failed:", error);
-        setErrors({ submit: "Registration failed. Please try again." });
+        setErrors({
+          submit: error.message || "Registration failed. Please try again.",
+        });
       }
     }
 
     setIsLoading(false);
-  };
-
-  const handleGoogleSignUp = () => {
-    console.log("Google sign up");
   };
 
   return (
@@ -173,6 +197,13 @@ export default function SignUpForm() {
         </div>
         {errors.terms && <p className="text-sm text-red-600">{errors.terms}</p>}
 
+        {/* Success Message */}
+        {successMessage && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <p className="text-sm text-green-600">{successMessage}</p>
+          </div>
+        )}
+
         {/* Submit Error */}
         {errors.submit && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3">
@@ -188,7 +219,7 @@ export default function SignUpForm() {
 
         <GoogleButton
           variant="signup"
-          onClick={handleGoogleSignUp}
+          onClick={signInWithGoogle}
           loading={isLoading}
         />
 

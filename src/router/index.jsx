@@ -1,15 +1,17 @@
 import { createBrowserRouter, Outlet } from "react-router-dom";
 import AuthLayout from "./authLayout";
-import SignIn from "../features/auth/pages/signin";
 import SignUp from "../features/auth/pages/Signup";
-import Dashboard from "../features/dashboard/pages/Dashboard";
+import SignIn from "../features/auth/pages/Signin"
 import Forgot from "../features/auth/pages/Forgot";
-import Intro from "../features/Intro/Intro";
+import Intro from "../features/intro/intro";
 import ProtectedLayout from "./ProtectedLayout";
+import ErrorPage from "./errorPage";
+import ResetPassword from "../features/auth/pages/ResetPassword";
 
 const router = createBrowserRouter([
   {
     element: <AuthLayout />,
+    errorElement: <ErrorPage />,
     children: [
       // Public routes - không cần đăng nhập
       {
@@ -28,16 +30,19 @@ const router = createBrowserRouter([
         path: "/forgot",
         element: <Forgot />,
       },
+      {
+        path: "/resetPassword",
+        element: <ResetPassword />,
+      },
 
       // Reuiqred login routes - tất cả routes bên trong đều cần đăng nhập
       {
         element: <ProtectedLayout />,
         children: [
           {
-            path: "/dashboard",
-            element: <Dashboard />,
+            path: "/home",
+            element: <Home />,
           },
-
         ],
       },
     ],

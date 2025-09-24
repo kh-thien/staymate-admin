@@ -1,13 +1,17 @@
 import React, { useState } from "react";
+import { toast } from "react-toastify";
 import { Link } from "react-router-dom";
 import { InputField, Button, Divider } from "../../../core/components";
-import GoogleButton from "./GoogleButton";
+import GoogleButton from "./googleButton";
+import { useAuth } from "../context";
 
 export default function SignInForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // loading cho nút đăng nhập
+  const [googleLoading, setGoogleLoading] = useState(false); // loading cho nút Google
+  const { signInWithEmailPassword, signInWithGoogle } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,17 +32,30 @@ export default function SignInForm() {
       try {
         // Simulate API call
         await new Promise((resolve) => setTimeout(resolve, 1000));
-        console.log("Success:", { email, password });
+        const result = await signInWithEmailPassword(email, password);
+        if (!result || !result.success) {
+          toast.error(
+            "Đăng nhập thất bại. Vui lòng kiểm tra lại email hoặc mật khẩu."
+          );
+        }
       } catch (error) {
         console.error("Login failed:", error);
+        toast.error(
+          "Đăng nhập thất bại. Vui lòng kiểm tra lại email hoặc mật khẩu."
+        );
       }
     }
 
     setIsLoading(false);
   };
-
-  const handleGoogleSignIn = () => {
-   
+  // Xử lý đăng nhập Google
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   return (
@@ -84,7 +101,7 @@ export default function SignInForm() {
         <GoogleButton
           variant="signin"
           onClick={handleGoogleSignIn}
-          loading={isLoading}
+          loading={googleLoading}
         />
 
         <p className="text-center text-sm text-gray-600">

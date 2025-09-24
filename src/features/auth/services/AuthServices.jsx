@@ -2,18 +2,32 @@ import supabase from "../../../core/data/remote/supabase";
 
 export const AuthService = {
   // Sign up with email and password
-  signUp: async (email, password, options = {}) => {
+  signUpWithEmailPassword: async (email, password, options = {}) => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: options.metadata || {},
+          emailRedirectTo: window.location.origin, // Redirect URL after email confirmation
         },
       });
 
       if (error) throw error;
-      return { success: true, data, error: null };
+
+      // Check if email confirmation is required
+      if (data.user && !data.session) {
+        console.log("Email confirmation required. Please check your email.");
+        return {
+          success: true,
+          data,
+          error: null,
+          requiresConfirmation: true,
+          message: "Please check your email to confirm your account.",
+        };
+      }
+
+      return { success: true, data, error: null, requiresConfirmation: false };
     } catch (error) {
       console.error("Sign up error:", error.message);
       return { success: false, data: null, error };
@@ -21,7 +35,7 @@ export const AuthService = {
   },
 
   // Sign in with email and password
-  signIn: async (email, password) => {
+  signInWithEmailPassword: async (email, password) => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -92,11 +106,11 @@ export const AuthService = {
     }
   },
 
-  // Reset password
+  //Reset password
   resetPassword: async (email) => {
     try {
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + "/reset-password",
+        redirectTo: window.location.origin + "/resetPassword",
       });
 
       if (error) throw error;
