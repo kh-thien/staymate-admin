@@ -1,17 +1,13 @@
 import React, { useState } from "react";
-import { toast } from "react-toastify";
 import { Link } from "react-router-dom";
 import { InputField, Button, Divider } from "../../../core/components";
-import GoogleButton from "./googleButton";
-import { useAuth } from "../context";
+import GoogleButton from "./GoogleButton";
 
 export default function SignInForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false); // loading cho nút đăng nhập
-  const [googleLoading, setGoogleLoading] = useState(false); // loading cho nút Google
-  const { signInWithEmailPassword, signInWithGoogle } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,30 +28,17 @@ export default function SignInForm() {
       try {
         // Simulate API call
         await new Promise((resolve) => setTimeout(resolve, 1000));
-        const result = await signInWithEmailPassword(email, password);
-        if (!result || !result.success) {
-          toast.error(
-            "Đăng nhập thất bại. Vui lòng kiểm tra lại email hoặc mật khẩu."
-          );
-        }
+        console.log("Success:", { email, password });
       } catch (error) {
         console.error("Login failed:", error);
-        toast.error(
-          "Đăng nhập thất bại. Vui lòng kiểm tra lại email hoặc mật khẩu."
-        );
       }
     }
 
     setIsLoading(false);
   };
-  // Xử lý đăng nhập Google
-  const handleGoogleSignIn = async () => {
-    setGoogleLoading(true);
-    try {
-      await signInWithGoogle();
-    } finally {
-      setGoogleLoading(false);
-    }
+
+  const handleGoogleSignIn = () => {
+   
   };
 
   return (
@@ -101,7 +84,7 @@ export default function SignInForm() {
         <GoogleButton
           variant="signin"
           onClick={handleGoogleSignIn}
-          loading={googleLoading}
+          loading={isLoading}
         />
 
         <p className="text-center text-sm text-gray-600">
