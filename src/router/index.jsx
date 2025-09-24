@@ -4,9 +4,9 @@ import SignUp from "../features/auth/pages/Signup";
 import SignIn from "../features/auth/pages/Signin"
 import Forgot from "../features/auth/pages/Forgot";
 import Intro from "../features/intro/intro";
-import ProtectedLayout from "./ProtectedLayout";
+import ProtectedLayout from "./protectedLayout";
 import ErrorPage from "./errorPage";
-import ResetPassword from "../features/auth/pages/ResetPassword";
+import ResetPassword from "../features/auth/pages/resetPassword";
 
 const router = createBrowserRouter([
   {
