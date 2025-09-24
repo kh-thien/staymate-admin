@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
-import { AuthService } from "../services/AuthServices";
-import AuthLayout from "../../../core/components/AuthLayout";
-import BrandLogo from "../../../core/components/BrandLogo";
+import { AuthService } from "../services/authServices";
+import AuthLayout from "../../../core/components/authLayout";
+import BrandLogo from "../../../core/components/brandLogo";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
