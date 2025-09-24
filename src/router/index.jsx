@@ -1,11 +1,13 @@
 import { createBrowserRouter, Outlet } from "react-router-dom";
 import AuthLayout from "./authLayout";
 import SignIn from "../features/auth/pages/signin";
-import SignUp from "../features/auth/pages/Signup";
-import Dashboard from "../features/dashboard/pages/Dashboard";
-import Forgot from "../features/auth/pages/Forgot";
-import Intro from "../features/Intro/Intro";
-import ProtectedLayout from "./ProtectedLayout";
+import SignUp from "../features/auth/pages/signup";
+import Dashboard from "../features/dashboard/pages/dashboard";
+import Forgot from "../features/auth/pages/forgot";
+import Intro from "../features/intro/intro";
+import ProtectedLayout from "./protectedLayout";
+import ResetPassword from "../features/auth/pages/resetPassword";
+import Home from "../features/home/pages/home";
 
 const router = createBrowserRouter([
   {
@@ -28,16 +30,19 @@ const router = createBrowserRouter([
         path: "/forgot",
         element: <Forgot />,
       },
+      {
+        path: "/reset-password",
+        element: <ResetPassword />,
+      },
 
       // Reuiqred login routes - tất cả routes bên trong đều cần đăng nhập
       {
         element: <ProtectedLayout />,
         children: [
           {
-            path: "/dashboard",
-            element: <Dashboard />,
+            path: "/home",
+            element: <Home />,
           },
-
         ],
       },
     ],

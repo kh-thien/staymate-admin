@@ -1,18 +1,33 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
-import { AuthService } from "../services/AuthServices";
-import AuthLayout from "../../../core/components/AuthLayout";
-import BrandLogo from "../../../core/components/BrandLogo";
+import { AuthService } from "../services/authServices";
+import AuthLayout from "../../../core/components/authLayout";
+import BrandLogo from "../../../core/components/brandLogo";
+import {
+  InputField,
+  Button,
+  PasswordStrengthIndicator,
+  Divider,
+} from "../../../core/components";
+import { useAuth } from "../context";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
-  // Không cần mật khẩu cũ cho flow reset password qua email
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [status, setStatus] = useState("");
+  const { isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/home", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+  const [formData, setFormData] = useState({
+    password: "",
+    confirmPassword: "",
+  });
+  const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  // Kiểm tra lỗi từ URL hash khi mount
   useEffect(() => {
     const hash = window.location.hash;
     if (
@@ -26,37 +41,58 @@ export default function ResetPassword() {
       setErrorMsg(decodeURIComponent(desc));
     }
   }, []);
-  const [loading, setLoading] = useState(false);
+
+  const handleChange = (field) => (e) => {
+    setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: "" }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.password) {
+      newErrors.password = "Please enter your new password!";
+    } else if (formData.password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters!";
+    }
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = "Please confirm your new password!";
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match!";
+    }
+    return newErrors;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setStatus("");
-    if (newPassword !== confirmPassword) {
-      setStatus("Mật khẩu mới và xác nhận không khớp!");
-      return;
-    }
-    setLoading(true);
-    try {
-      const result = await AuthService.updatePassword(newPassword);
-      setLoading(false);
-      if (result.success) {
-        toast.success("Đổi mật khẩu thành công!");
-        setNewPassword("");
-        setConfirmPassword("");
-        setTimeout(() => {
-          navigate("/signin");
-        }, 1500);
-      } else {
-        setStatus(
-          "Đổi mật khẩu thất bại: " +
-            (result.error?.message || "Lỗi không xác định")
+    setErrors({});
+    const newErrors = validateForm();
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length === 0) {
+      setIsLoading(true);
+      try {
+        const result = await AuthService.updatePassword(formData.password);
+        setIsLoading(false);
+        if (result.success) {
+          toast.success("Đổi mật khẩu thành công!");
+          await AuthService.signOut();
+          setFormData({ password: "", confirmPassword: "" });
+          setTimeout(() => {
+            navigate("/signin");
+          }, 1500);
+        } else {
+          toast.error(
+            "Đổi mật khẩu thất bại: " +
+              (result.error?.message || "Lỗi không xác định")
+          );
+        }
+      } catch (err) {
+        setIsLoading(false);
+        toast.error(
+          "Đổi mật khẩu thất bại: " + (err.message || "Lỗi không xác định")
         );
       }
-    } catch (err) {
-      setLoading(false);
-      setStatus(
-        "Đổi mật khẩu thất bại: " + (err.message || "Lỗi không xác định")
-      );
     }
   };
 
@@ -84,62 +120,56 @@ export default function ResetPassword() {
             </div>
           </div>
         ) : (
-          <>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label
-                  htmlFor="newPassword"
-                  className="block text-sm font-medium text-gray-700"
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <InputField
+              id="password"
+              name="password"
+              type="password"
+              label="Mật khẩu mới"
+              value={formData.password}
+              onChange={handleChange("password")}
+              placeholder="Nhập mật khẩu mới"
+              error={errors.password}
+              autoFocus
+            />
+            <PasswordStrengthIndicator password={formData.password} />
+            <InputField
+              id="confirmPassword"
+              name="confirmPassword"
+              type="password"
+              label="Xác nhận mật khẩu mới"
+              value={formData.confirmPassword}
+              onChange={handleChange("confirmPassword")}
+              placeholder="Xác nhận mật khẩu mới"
+              error={errors.confirmPassword}
+            />
+            {/* errors.submit sẽ được hiển thị qua toast */}
+            <Button type="submit" variant="primary" disabled={isLoading}>
+              {isLoading ? "Đang xử lý..." : "Đổi mật khẩu"}
+            </Button>
+            <Divider />
+            <div className="text-center space-y-4">
+              <p className="text-sm text-gray-600">
+                Đã có tài khoản?{" "}
+                <Link
+                  to="/signin"
+                  className="text-indigo-600 hover:text-indigo-500 font-medium transition-colors duration-200"
                 >
-                  Mật khẩu mới
-                </label>
-                <input
-                  type="password"
-                  id="newPassword"
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Nhập mật khẩu mới"
-                  required
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="confirmPassword"
-                  className="block text-sm font-medium text-gray-700"
+                  Đăng nhập
+                </Link>
+              </p>
+              <p className="text-sm text-gray-600">
+                Chưa có tài khoản?{" "}
+                <Link
+                  to="/signup"
+                  className="text-indigo-600 hover:text-indigo-500 font-medium transition-colors duration-200"
                 >
-                  Xác nhận mật khẩu mới
-                </label>
-                <input
-                  type="password"
-                  id="confirmPassword"
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Xác nhận mật khẩu mới"
-                  required
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full py-2 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-semibold transition-colors duration-200"
-                disabled={loading}
-              >
-                {loading ? "Đang xử lý..." : "Đổi mật khẩu"}
-              </button>
-            </form>
-            <div className="mt-6 flex justify-center gap-4">
-              <Link to="/signin" className="text-blue-600 hover:underline">
-                Đăng nhập
-              </Link>
-              <span className="text-gray-400">|</span>
-              <Link to="/signup" className="text-blue-600 hover:underline">
-                Đăng ký
-              </Link>
+                  Đăng ký
+                </Link>
+              </p>
             </div>
-          </>
+          </form>
         )}
-        {status && <p className="mt-4 text-center text-red-600">{status}</p>}
       </div>
     </AuthLayout>
   );

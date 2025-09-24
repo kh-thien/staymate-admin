@@ -1,8 +1,8 @@
 // Core Components
-export { default as AuthLayout } from "./AuthLayout";
-export { default as BrandLogo } from "./BrandLogo";
-export { default as InputField } from "./InputField";
-export { default as Button } from "./Button";
-export { default as GoogleIcon } from "./GoogleIcon";
-export { default as Divider } from "./Divider";
-export { default as PasswordStrengthIndicator } from "./PasswordStrengthIndicator";
+export { default as AuthLayout } from "./authLayout";
+export { default as BrandLogo } from "./brandLogo";
+export { default as InputField } from "./inputField";
+export { default as Button } from "./btton";
+export { default as GoogleIcon } from "./googleIcon";
+export { default as Divider } from "./divider";
+export { default as PasswordStrengthIndicator } from "./passwordStrengthIndicator";
