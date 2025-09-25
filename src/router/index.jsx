@@ -6,8 +6,7 @@ import Forgot from "../features/auth/pages/forgot";
 import Intro from "../features/intro/intro";
 import ProtectedLayout from "./protectedLayout";
 import Home from "../features/home/pages/home";
-import ResetPassword from "../features/auth/components/resetPassword";
-
+import ResetPassword from "../features/auth/pages/resetPassword";
 
 const router = createBrowserRouter([
   {
