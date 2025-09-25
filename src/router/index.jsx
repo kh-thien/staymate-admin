@@ -8,6 +8,7 @@ import ProtectedLayout from "./protectedLayout";
 import Home from "../features/home/pages/home";
 import ResetPassword from "../features/auth/components/resetPassword";
 
+
 const router = createBrowserRouter([
   {
     element: <AuthLayout />,

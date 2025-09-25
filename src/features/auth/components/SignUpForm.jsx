@@ -110,7 +110,7 @@ export default function SignUpForm() {
         />
 
         <InputField
-          id="email"
+          id="signup-email"
           name="email"
           type="email"
           label="Email Address"
@@ -122,7 +122,7 @@ export default function SignUpForm() {
 
         <div>
           <InputField
-            id="password"
+            id="signup-password"
             name="password"
             type="password"
             label="Password"

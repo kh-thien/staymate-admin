@@ -1,4 +1,4 @@
-import React, { useState, useEffect, } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { AuthService } from "../services/authServices";
@@ -122,7 +122,7 @@ export default function ResetPassword() {
         ) : (
           <form className="space-y-6" onSubmit={handleSubmit}>
             <InputField
-              id="password"
+              id="reset-password"
               name="password"
               type="password"
               label="Mật khẩu mới"

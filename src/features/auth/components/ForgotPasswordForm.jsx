@@ -36,7 +36,6 @@ export default function ForgotPasswordForm() {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 2000));
       await AuthService.resetPassword(email);
-      console.log("Password reset email sent to:", email);
       setIsSubmitted(true);
     } catch (error) {
       console.error("Error sending reset email:", error);
@@ -114,7 +113,7 @@ export default function ForgotPasswordForm() {
         </div>
 
         <InputField
-          id="email"
+          id="forgot-email"
           name="email"
           type="email"
           label="Email Address"

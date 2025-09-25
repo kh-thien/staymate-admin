@@ -53,7 +53,7 @@ export default function SignInForm() {
     <div className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl p-8 border border-white/20">
       <form className="space-y-6" onSubmit={handleSubmit}>
         <InputField
-          id="email"
+          id="signin-email"
           name="email"
           type="email"
           label="Email"
@@ -64,7 +64,7 @@ export default function SignInForm() {
         />
 
         <InputField
-          id="password"
+          id="signin-password"
           name="password"
           type="password"
           label="Password"
