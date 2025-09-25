@@ -2,12 +2,11 @@ import { createBrowserRouter, Outlet } from "react-router-dom";
 import AuthLayout from "./authLayout";
 import SignIn from "../features/auth/pages/signin";
 import SignUp from "../features/auth/pages/signup";
-import Dashboard from "../features/dashboard/pages/dashboard";
 import Forgot from "../features/auth/pages/forgot";
 import Intro from "../features/intro/intro";
 import ProtectedLayout from "./protectedLayout";
-import ResetPassword from "../features/auth/pages/resetPassword";
 import Home from "../features/home/pages/home";
+import ResetPassword from "../features/auth/components/resetPassword";
 
 const router = createBrowserRouter([
   {
