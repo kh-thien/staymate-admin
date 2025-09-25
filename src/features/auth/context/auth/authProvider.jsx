@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 
 // AuthProvider component with Supabase integration
 export default function AuthProvider({ children }) {
+  const [userId, setUserId] = useState(null);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState(null);
@@ -14,8 +15,11 @@ export default function AuthProvider({ children }) {
   useEffect(() => {
     if (!isLoading && user) {
       const path = window.location.pathname;
-      // if (path === "/" || path === "/signin") {
-      if (path === "/signin" || path === "/reset-password" || path === "/signup") {
+      if (
+        path === "/signin" ||
+        path === "/reset-password" ||
+        path === "/signup"
+      ) {
         navigate("/home", { replace: true });
       }
     }
@@ -27,6 +31,7 @@ export default function AuthProvider({ children }) {
     const initializeAuth = async () => {
       const { session } = await AuthService.getSession();
       setSession(session);
+      setUserId(session?.user?.id || null);
       setUser(session?.user || null);
       setIsLoading(false);
     };
@@ -39,7 +44,12 @@ export default function AuthProvider({ children }) {
     } = AuthService.onAuthStateChange((event, session) => {
       console.log("Auth state changed:", event, session?.user?.email);
       setSession(session);
-      setUser(session?.user || null);
+      // Chỉ set userId khi KHÔNG phải event reset password
+      if (event !== "PASSWORD_RECOVERY") {
+        setUserId(session?.user?.id || null);
+        setUser(session?.user || null);
+      }
+      // Khi reset password, giữ nguyên userId (đã là null sau khi đăng xuất)
       setIsLoading(false);
     });
 
@@ -73,11 +83,13 @@ export default function AuthProvider({ children }) {
       const result = await AuthService.signInWithProvider("google");
       console.log("Google sign-in initiated:", result);
       if (result.success) {
-        navigate("/dashboard");
         return { success: true, data: result.data };
+      } else {
+        navigate("/signin");
       }
     } catch (error) {
       console.error("Login failed:", error);
+      navigate("/signin");
       throw error;
     } finally {
       setIsLoading(false);
@@ -107,11 +119,15 @@ export default function AuthProvider({ children }) {
   const signup = async (userData) => {
     setIsLoading(true);
     try {
-      const result = await AuthService.signUp(userData.email, userData.password, {
-        metadata: {
-          full_name: userData.fullName,
-        },
-      });
+      const result = await AuthService.signUp(
+        userData.email,
+        userData.password,
+        {
+          metadata: {
+            full_name: userData.fullName,
+          },
+        }
+      );
 
       if (result.success) {
         console.log("Signup successful:", result.data.user?.email);
@@ -147,6 +163,7 @@ export default function AuthProvider({ children }) {
   };
 
   const value = {
+    userId,
     user,
     session,
     isLoading,
@@ -155,7 +172,7 @@ export default function AuthProvider({ children }) {
     logout,
     signup,
     resetPassword,
-    isAuthenticated: !!user,
+    isAuthenticated: !!userId,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

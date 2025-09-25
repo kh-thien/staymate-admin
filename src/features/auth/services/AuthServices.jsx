@@ -41,6 +41,9 @@ export const AuthService = {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider, // 'google', 'github', 'facebook', etc.
+        options: {
+          redirectTo: window.location.origin + "/home",
+        },
       });
       if (error) throw error;
       return { success: true, data, error: null };

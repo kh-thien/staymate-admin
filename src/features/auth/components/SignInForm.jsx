@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { InputField, Button, Divider } from "../../../core/components";
 import GoogleButton from "./googleButton";
 import { AuthService } from "../services/authServices";
-import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 export default function SignInForm() {
@@ -11,7 +10,6 @@ export default function SignInForm() {
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,9 +31,7 @@ export default function SignInForm() {
         // Simulate API call
         await new Promise((resolve) => setTimeout(resolve, 1000));
         const result = await AuthService.signIn(email, password);
-        if (result.success) {
-          navigate("/home");
-        } else {
+        if (!result.success) {
           toast.error("Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.");
         }
       } catch (error) {

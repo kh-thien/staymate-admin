@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { AuthService } from "../services/authServices";
 import AuthLayout from "../../../core/components/authLayout";
@@ -12,22 +12,17 @@ import {
 } from "../../../core/components";
 import { useAuth } from "../context";
 
-export default function ResetPassword() {
-  const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/home", { replace: true });
-    }
-  }, [isAuthenticated, navigate]);
+function ResetPassword() {
+  const { user, isLoading } = useAuth();
   const [formData, setFormData] = useState({
     password: "",
     confirmPassword: "",
   });
   const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const navigate = useNavigate();
+
   useEffect(() => {
     const hash = window.location.hash;
     if (
@@ -41,6 +36,13 @@ export default function ResetPassword() {
       setErrorMsg(decodeURIComponent(desc));
     }
   }, []);
+
+  if (isLoading) {
+    return null;
+  }
+  if (user) {
+    return <Navigate to="/home" replace />;
+  }
 
   const handleChange = (field) => (e) => {
     setFormData((prev) => ({ ...prev, [field]: e.target.value }));
@@ -70,10 +72,10 @@ export default function ResetPassword() {
     const newErrors = validateForm();
     setErrors(newErrors);
     if (Object.keys(newErrors).length === 0) {
-      setIsLoading(true);
+      setFormLoading(true);
       try {
         const result = await AuthService.updatePassword(formData.password);
-        setIsLoading(false);
+        setFormLoading(false);
         if (result.success) {
           toast.success("Đổi mật khẩu thành công!");
           await AuthService.signOut();
@@ -88,7 +90,7 @@ export default function ResetPassword() {
           );
         }
       } catch (err) {
-        setIsLoading(false);
+        setFormLoading(false);
         toast.error(
           "Đổi mật khẩu thất bại: " + (err.message || "Lỗi không xác định")
         );
@@ -144,8 +146,8 @@ export default function ResetPassword() {
               error={errors.confirmPassword}
             />
             {/* errors.submit sẽ được hiển thị qua toast */}
-            <Button type="submit" variant="primary" disabled={isLoading}>
-              {isLoading ? "Đang xử lý..." : "Đổi mật khẩu"}
+            <Button type="submit" variant="primary" disabled={formLoading}>
+              {formLoading ? "Đang xử lý..." : "Đổi mật khẩu"}
             </Button>
             <Divider />
             <div className="text-center space-y-4">
@@ -174,3 +176,5 @@ export default function ResetPassword() {
     </AuthLayout>
   );
 }
+
+export default ResetPassword;
