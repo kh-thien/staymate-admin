@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { AuthContext } from "./authContext";
-import { auth } from "../../../../core/data/remote/supabase";
 import { AuthService } from "../../services/authServices";
 import { useNavigate } from "react-router-dom";
 
@@ -26,7 +25,7 @@ export default function AuthProvider({ children }) {
   useEffect(() => {
     // Get initial session
     const initializeAuth = async () => {
-      const { session } = await auth.getSession();
+      const { session } = await AuthService.getSession();
       setSession(session);
       setUser(session?.user || null);
       setIsLoading(false);
@@ -37,7 +36,7 @@ export default function AuthProvider({ children }) {
     // Listen for auth state changes
     const {
       data: { subscription },
-    } = auth.onAuthStateChange((event, session) => {
+    } = AuthService.onAuthStateChange((event, session) => {
       console.log("Auth state changed:", event, session?.user?.email);
       setSession(session);
       setUser(session?.user || null);
@@ -51,7 +50,7 @@ export default function AuthProvider({ children }) {
   const login = async (email, password) => {
     setIsLoading(true);
     try {
-      const result = await auth.signIn(email, password);
+      const result = await AuthService.signIn(email, password);
 
       if (result.success) {
         // User state will be updated by the auth state change listener
@@ -88,7 +87,7 @@ export default function AuthProvider({ children }) {
   const logout = async () => {
     setIsLoading(true);
     try {
-      const result = await auth.signOut();
+      const result = await AuthService.signOut();
 
       if (result.success) {
         // User state will be updated by the auth state change listener
@@ -108,7 +107,7 @@ export default function AuthProvider({ children }) {
   const signup = async (userData) => {
     setIsLoading(true);
     try {
-      const result = await auth.signUp(userData.email, userData.password, {
+      const result = await AuthService.signUp(userData.email, userData.password, {
         metadata: {
           full_name: userData.fullName,
         },
@@ -131,7 +130,7 @@ export default function AuthProvider({ children }) {
   const resetPassword = async (email) => {
     setIsLoading(true);
     try {
-      const result = await auth.resetPassword(email);
+      const result = await AuthService.resetPassword(email);
 
       if (result.success) {
         console.log("Reset password email sent to:", email);

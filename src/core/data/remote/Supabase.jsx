@@ -13,7 +13,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // Tạo Supabase client
-export const supabaseConnection = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
@@ -28,222 +28,224 @@ export const supabaseConnection = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 
-// Database helper functions
-export const database = {
-  // Generic select function
-  select: async (table, options = {}) => {
-    try {
-      let query = supabaseConnection.from(table).select(options.select || "*");
 
-      // Apply filters
-      if (options.eq) {
-        Object.entries(options.eq).forEach(([column, value]) => {
-          query = query.eq(column, value);
-        });
-      }
 
-      // Apply ordering
-      if (options.orderBy) {
-        query = query.order(options.orderBy.column, {
-          ascending: options.orderBy.ascending !== false,
-        });
-      }
+// // Database helper functions
+// export const database = {
+//   // Generic select function
+//   select: async (table, options = {}) => {
+//     try {
+//       let query = supabaseConnection.from(table).select(options.select || "*");
 
-      // Apply pagination
-      if (options.limit) {
-        query = query.limit(options.limit);
-      }
+//       // Apply filters
+//       if (options.eq) {
+//         Object.entries(options.eq).forEach(([column, value]) => {
+//           query = query.eq(column, value);
+//         });
+//       }
 
-      if (options.offset) {
-        query = query.range(
-          options.offset,
-          options.offset + (options.limit || 10) - 1
-        );
-      }
+//       // Apply ordering
+//       if (options.orderBy) {
+//         query = query.order(options.orderBy.column, {
+//           ascending: options.orderBy.ascending !== false,
+//         });
+//       }
 
-      const { data, error } = await query;
+//       // Apply pagination
+//       if (options.limit) {
+//         query = query.limit(options.limit);
+//       }
 
-      if (error) throw error;
-      return { success: true, data, error: null };
-    } catch (error) {
-      console.error(`Select from ${table} error:`, error.message);
-      return { success: false, data: null, error };
-    }
-  },
+//       if (options.offset) {
+//         query = query.range(
+//           options.offset,
+//           options.offset + (options.limit || 10) - 1
+//         );
+//       }
 
-  // Generic insert function
-  insert: async (table, data) => {
-    try {
-      const { data: result, error } = await supabaseConnection
-        .from(table)
-        .insert(data)
-        .select();
+//       const { data, error } = await query;
 
-      if (error) throw error;
-      return { success: true, data: result, error: null };
-    } catch (error) {
-      console.error(`Insert to ${table} error:`, error.message);
-      return { success: false, data: null, error };
-    }
-  },
+//       if (error) throw error;
+//       return { success: true, data, error: null };
+//     } catch (error) {
+//       console.error(`Select from ${table} error:`, error.message);
+//       return { success: false, data: null, error };
+//     }
+//   },
 
-  // Generic update function
-  update: async (table, data, conditions) => {
-    try {
-      let query = supabaseConnection.from(table).update(data);
+//   // Generic insert function
+//   insert: async (table, data) => {
+//     try {
+//       const { data: result, error } = await supabaseConnection
+//         .from(table)
+//         .insert(data)
+//         .select();
 
-      // Apply conditions
-      Object.entries(conditions).forEach(([column, value]) => {
-        query = query.eq(column, value);
-      });
+//       if (error) throw error;
+//       return { success: true, data: result, error: null };
+//     } catch (error) {
+//       console.error(`Insert to ${table} error:`, error.message);
+//       return { success: false, data: null, error };
+//     }
+//   },
 
-      const { data: result, error } = await query.select();
+//   // Generic update function
+//   update: async (table, data, conditions) => {
+//     try {
+//       let query = supabaseConnection.from(table).update(data);
 
-      if (error) throw error;
-      return { success: true, data: result, error: null };
-    } catch (error) {
-      console.error(`Update ${table} error:`, error.message);
-      return { success: false, data: null, error };
-    }
-  },
+//       // Apply conditions
+//       Object.entries(conditions).forEach(([column, value]) => {
+//         query = query.eq(column, value);
+//       });
 
-  // Generic delete function
-  delete: async (table, conditions) => {
-    try {
-      let query = supabaseConnection.from(table).delete();
+//       const { data: result, error } = await query.select();
 
-      // Apply conditions
-      Object.entries(conditions).forEach(([column, value]) => {
-        query = query.eq(column, value);
-      });
+//       if (error) throw error;
+//       return { success: true, data: result, error: null };
+//     } catch (error) {
+//       console.error(`Update ${table} error:`, error.message);
+//       return { success: false, data: null, error };
+//     }
+//   },
 
-      const { data, error } = await query;
+//   // Generic delete function
+//   delete: async (table, conditions) => {
+//     try {
+//       let query = supabaseConnection.from(table).delete();
 
-      if (error) throw error;
-      return { success: true, data, error: null };
-    } catch (error) {
-      console.error(`Delete from ${table} error:`, error.message);
-      return { success: false, data: null, error };
-    }
-  },
-};
+//       // Apply conditions
+//       Object.entries(conditions).forEach(([column, value]) => {
+//         query = query.eq(column, value);
+//       });
 
-// Storage helper functions
-export const storage = {
-  // Upload file
-  upload: async (bucket, path, file, options = {}) => {
-    try {
-      const { data, error } = await supabaseConnection.storage
-        .from(bucket)
-        .upload(path, file, {
-          cacheControl: "3600",
-          upsert: options.upsert || false,
-          ...options,
-        });
+//       const { data, error } = await query;
 
-      if (error) throw error;
-      return { success: true, data, error: null };
-    } catch (error) {
-      console.error("Upload error:", error.message);
-      return { success: false, data: null, error };
-    }
-  },
+//       if (error) throw error;
+//       return { success: true, data, error: null };
+//     } catch (error) {
+//       console.error(`Delete from ${table} error:`, error.message);
+//       return { success: false, data: null, error };
+//     }
+//   },
+// };
 
-  // Download file
-  download: async (bucket, path) => {
-    try {
-      const { data, error } = await supabaseConnection.storage
-        .from(bucket)
-        .download(path);
+// // Storage helper functions
+// export const storage = {
+//   // Upload file
+//   upload: async (bucket, path, file, options = {}) => {
+//     try {
+//       const { data, error } = await supabaseConnection.storage
+//         .from(bucket)
+//         .upload(path, file, {
+//           cacheControl: "3600",
+//           upsert: options.upsert || false,
+//           ...options,
+//         });
 
-      if (error) throw error;
-      return { success: true, data, error: null };
-    } catch (error) {
-      console.error("Download error:", error.message);
-      return { success: false, data: null, error };
-    }
-  },
+//       if (error) throw error;
+//       return { success: true, data, error: null };
+//     } catch (error) {
+//       console.error("Upload error:", error.message);
+//       return { success: false, data: null, error };
+//     }
+//   },
 
-  // Get public URL
-  getPublicUrl: (bucket, path) => {
-    const { data } = supabaseConnection.storage.from(bucket).getPublicUrl(path);
+//   // Download file
+//   download: async (bucket, path) => {
+//     try {
+//       const { data, error } = await supabaseConnection.storage
+//         .from(bucket)
+//         .download(path);
 
-    return data.publicUrl;
-  },
+//       if (error) throw error;
+//       return { success: true, data, error: null };
+//     } catch (error) {
+//       console.error("Download error:", error.message);
+//       return { success: false, data: null, error };
+//     }
+//   },
 
-  // Delete file
-  remove: async (bucket, paths) => {
-    try {
-      const { data, error } = await supabaseConnection.storage
-        .from(bucket)
-        .remove(Array.isArray(paths) ? paths : [paths]);
+//   // Get public URL
+//   getPublicUrl: (bucket, path) => {
+//     const { data } = supabaseConnection.storage.from(bucket).getPublicUrl(path);
 
-      if (error) throw error;
-      return { success: true, data, error: null };
-    } catch (error) {
-      console.error("Remove error:", error.message);
-      return { success: false, data: null, error };
-    }
-  },
-};
+//     return data.publicUrl;
+//   },
 
-// Realtime helper functions
-export const realtime = {
-  // Subscribe to table changes
-  subscribe: (table, callback, options = {}) => {
-    const channel = supabaseConnection
-      .channel(`${table}_changes`)
-      .on(
-        "postgres_changes",
-        {
-          event: options.event || "*", // INSERT, UPDATE, DELETE, or *
-          schema: options.schema || "public",
-          table: table,
-          filter: options.filter,
-        },
-        callback
-      )
-      .subscribe();
+//   // Delete file
+//   remove: async (bucket, paths) => {
+//     try {
+//       const { data, error } = await supabaseConnection.storage
+//         .from(bucket)
+//         .remove(Array.isArray(paths) ? paths : [paths]);
 
-    return channel;
-  },
+//       if (error) throw error;
+//       return { success: true, data, error: null };
+//     } catch (error) {
+//       console.error("Remove error:", error.message);
+//       return { success: false, data: null, error };
+//     }
+//   },
+// };
 
-  // Unsubscribe from channel
-  unsubscribe: (channel) => {
-    return supabaseConnection.removeChannel(channel);
-  },
-};
+// // Realtime helper functions
+// export const realtime = {
+//   // Subscribe to table changes
+//   subscribe: (table, callback, options = {}) => {
+//     const channel = supabaseConnection
+//       .channel(`${table}_changes`)
+//       .on(
+//         "postgres_changes",
+//         {
+//           event: options.event || "*", // INSERT, UPDATE, DELETE, or *
+//           schema: options.schema || "public",
+//           table: table,
+//           filter: options.filter,
+//         },
+//         callback
+//       )
+//       .subscribe();
 
-// Utility functions
-export const utils = {
-  // Check if user is authenticated
-  isAuthenticated: async () => {
-    const {
-      data: { session },
-    } = await supabaseConnection.auth.getSession();
-    return !!session;
-  },
+//     return channel;
+//   },
 
-  // Get user role (if you have RLS policies)
-  getUserRole: async () => {
-    try {
-      const {
-        data: { user },
-      } = await supabaseConnection.auth.getUser();
-      return user?.user_metadata?.role || user?.app_metadata?.role || "user";
-    } catch (error) {
-      console.error("Get user role error:", error.message);
-      return null;
-    }
-  },
+//   // Unsubscribe from channel
+//   unsubscribe: (channel) => {
+//     return supabaseConnection.removeChannel(channel);
+//   },
+// };
 
-  // Format error message
-  formatError: (error) => {
-    if (error?.message) {
-      return error.message;
-    }
-    return "An unexpected error occurred";
-  },
-};
+// // Utility functions
+// export const utils = {
+//   // Check if user is authenticated
+//   isAuthenticated: async () => {
+//     const {
+//       data: { session },
+//     } = await supabaseConnection.auth.getSession();
+//     return !!session;
+//   },
 
-export default supabaseConnection;
+//   // Get user role (if you have RLS policies)
+//   getUserRole: async () => {
+//     try {
+//       const {
+//         data: { user },
+//       } = await supabaseConnection.auth.getUser();
+//       return user?.user_metadata?.role || user?.app_metadata?.role || "user";
+//     } catch (error) {
+//       console.error("Get user role error:", error.message);
+//       return null;
+//     }
+//   },
+
+//   // Format error message
+//   formatError: (error) => {
+//     if (error?.message) {
+//       return error.message;
+//     }
+//     return "An unexpected error occurred";
+//   },
+
+export default supabase;
+
