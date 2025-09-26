@@ -1,16 +1,15 @@
 import { createBrowserRouter, Outlet } from "react-router-dom";
 import AuthLayout from "./authLayout";
-import SignIn from "../features/auth/pages/signin";
-import SignUp from "../features/auth/pages/signup";
-import Forgot from "../features/auth/pages/forgot";
+import SignInRedux from "../features/auth/pages/signinRedux";
+import SignUpRedux from "../features/auth/pages/signupRedux";
+import ForgotRedux from "../features/auth/pages/forgotRedux";
 import ProtectedLayout from "./protectedLayout";
 import Home from "../features/home/pages/home";
 import ResetPassword from "../features/auth/pages/resetPassword";
 import ConfirmedEmail from "../features/auth/pages/confirmedEmail";
 import Intro from "../features/intro/intro";
-import { HostelDashboard } from "../features/hostel";
 
-const router = createBrowserRouter([
+const routerRedux = createBrowserRouter([
   {
     element: <AuthLayout />,
     children: [
@@ -21,15 +20,15 @@ const router = createBrowserRouter([
       },
       {
         path: "/signup",
-        element: <SignUp />,
+        element: <SignUpRedux />,
       },
       {
         path: "/signin",
-        element: <SignIn />,
+        element: <SignInRedux />,
       },
       {
         path: "/forgot",
-        element: <Forgot />,
+        element: <ForgotRedux />,
       },
       {
         path: "/reset-password",
@@ -48,14 +47,10 @@ const router = createBrowserRouter([
             path: "/home",
             element: <Home />,
           },
-          {
-            path: "/hostel",
-            element: <HostelDashboard />,
-          },
         ],
       },
     ],
   },
 ]);
 
-export default router;
+export default routerRedux;
