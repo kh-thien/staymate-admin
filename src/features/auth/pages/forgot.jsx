@@ -1,6 +1,6 @@
 import React from "react";
 import { AuthLayout, BrandLogo } from "../../../core/components";
-import SimpleForgotPasswordForm from "../components/SimpleForgotPasswordForm";
+import SimpleForgotPasswordForm from "../components/simpleForgotPasswordForm";
 import { useAuth } from "../context";
 import { Navigate } from "react-router-dom";
 

@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { AuthService } from "../services/authServices";
 import { validateForm, handleApiError } from "../utils/forgotPasswordUtils";
-import ForgotPasswordFormUI from "./ui/ForgotPasswordFormUI";
-import ForgotPasswordSuccessUI from "./ui/ForgotPasswordSuccessUI";
+import ForgotPasswordFormUI from "./ui/forgotPasswordFormUI";
+import ForgotPasswordSuccessUI from "./ui/forgotPasswordSuccessUI";
 
 export default function SimpleForgotPasswordForm() {
   const [email, setEmail] = useState("");

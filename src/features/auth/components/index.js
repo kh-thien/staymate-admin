@@ -1,5 +1,5 @@
 // Auth Components - Clean Architecture
-export { default as SimpleSignInForm } from "./SimpleSignInForm";
+export { default as SimpleSignInForm } from "./simpleSignInForm";
 export { default as GoogleButton } from "./googleButton";
-export { default as SimpleForgotPasswordForm } from "./SimpleForgotPasswordForm";
-export { default as SimpleSignUpForm } from "./SimpleSignUpForm";
+export { default as SimpleForgotPasswordForm } from "./simpleForgotPasswordForm";
+export { default as SimpleSignUpForm } from "./simpleSignUpForm";
