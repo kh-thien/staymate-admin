@@ -23,20 +23,29 @@ export default function AuthProvider({ children }) {
       window.location.hash.replace("#", "?")
     );
 
-    // Detect email confirmation scenarios
+    // Detect ONLY email confirmation scenarios, not OAuth login
     const isEmailConfirmPage = path === "/confirmed-email";
-    const hasConfirmationParams =
-      urlParams.has("token_hash") ||
-      hashParams.has("access_token") ||
-      hashParams.has("type");
+    const hasEmailConfirmationToken = urlParams.has("token_hash");
+    const isPasswordRecovery = hashParams.get("type") === "recovery";
 
-    if (isEmailConfirmPage || hasConfirmationParams) {
+    // Only treat as email confirmation if:
+    // 1. On confirmed-email page, OR
+    // 2. Has token_hash (email verification), OR
+    // 3. Has type=recovery (password reset)
+    // BUT NOT OAuth login (which has access_token without token_hash)
+    const isEmailConfirmation =
+      isEmailConfirmPage || hasEmailConfirmationToken || isPasswordRecovery;
+
+    if (isEmailConfirmation) {
       console.log(
         "🔍 Email confirmation detected - logging out and redirecting to signin:",
         {
           path,
           urlParams: Object.fromEntries(urlParams),
           hashParams: Object.fromEntries(hashParams),
+          isEmailConfirmPage,
+          hasEmailConfirmationToken,
+          isPasswordRecovery,
         }
       );
       setIsEmailConfirmation(true);
@@ -54,6 +63,12 @@ export default function AuthProvider({ children }) {
         }
       }, 1000); // Small delay to allow confirmation process to complete
     } else {
+      console.log("🔍 Not email confirmation - allowing normal OAuth flow:", {
+        path,
+        hasAccessToken: hashParams.has("access_token"),
+        hasTokenHash: hasEmailConfirmationToken,
+        type: hashParams.get("type"),
+      });
       setIsEmailConfirmation(false);
     }
   }, [navigate]);
@@ -62,17 +77,22 @@ export default function AuthProvider({ children }) {
   useEffect(() => {
     const path = window.location.pathname;
 
-    // Check if coming from email confirmation in real-time
+    // Check if coming from email confirmation in real-time (use same logic as above)
     const urlParams = new URLSearchParams(window.location.search);
     const hashParams = new URLSearchParams(
       window.location.hash.replace("#", "?")
     );
-    const hasConfirmationParams =
-      urlParams.has("token_hash") ||
-      hashParams.has("access_token") ||
-      hashParams.has("type");
+    const isEmailConfirmPage = path === "/confirmed-email";
+    const hasEmailConfirmationToken = urlParams.has("token_hash");
+    const isPasswordRecovery = hashParams.get("type") === "recovery";
+
+    // Only treat as email confirmation if:
+    // 1. On confirmed-email page, OR
+    // 2. Has token_hash (email verification), OR
+    // 3. Has type=recovery (password reset)
+    // BUT NOT OAuth login (which has access_token without token_hash)
     const isCurrentlyEmailConfirmation =
-      path === "/confirmed-email" || hasConfirmationParams;
+      isEmailConfirmPage || hasEmailConfirmationToken || isPasswordRecovery;
 
     console.log("🔍 Auto-redirect useEffect triggered:", {
       path,
@@ -82,6 +102,9 @@ export default function AuthProvider({ children }) {
       isSignupFlow,
       isEmailConfirmation,
       isCurrentlyEmailConfirmation,
+      hasAccessToken: hashParams.has("access_token"),
+      hasTokenHash: hasEmailConfirmationToken,
+      justLoggedIn,
       condition:
         !isLoading &&
         user &&
@@ -97,7 +120,8 @@ export default function AuthProvider({ children }) {
       user &&
       justLoggedIn &&
       !isPasswordRecovery &&
-      !isSignupFlow
+      !isSignupFlow &&
+      !isCurrentlyEmailConfirmation
     ) {
       console.log(
         "🔍 Auto-redirect check passed for fresh login, checking path:",
@@ -105,15 +129,15 @@ export default function AuthProvider({ children }) {
       );
       // Only redirect from signin page, allow access to intro (/) and confirmed-email
       if (path === "/signin") {
-        console.log("✅ Redirecting from signin to /home");
+        console.log("Redirecting from signin to /home");
         navigate("/home", { replace: true });
         setJustLoggedIn(false); // Reset flag after redirect
       } else {
-        console.log("✅ Staying on current path:", path);
+        console.log(" Staying on current path:", path);
         setJustLoggedIn(false); // Reset flag
       }
     } else {
-      console.log("❌ Auto-redirect conditions not met - no fresh login");
+      console.log(" Auto-redirect conditions not met - no fresh login");
     }
   }, [
     user,
@@ -157,18 +181,24 @@ export default function AuthProvider({ children }) {
         setUserId(session?.user?.id || null);
         setUser(session?.user || null);
       } else if (event === "SIGNED_IN") {
-        // User đã đăng nhập thành công (có thể sau khi reset password)
+        // User đã đăng nhập thành công (có thể sau khi reset password hoặc OAuth)
         console.log("🔍 SIGNED_IN event - user signed in");
         setIsPasswordRecovery(false);
         setUserId(session?.user?.id || null);
         setUser(session?.user || null);
 
-        // Chỉ redirect khi user đang ở trang signin và KHÔNG phải email confirmation
+        // Check if this is email confirmation vs normal login/OAuth
         const currentPath = window.location.pathname;
+        const urlParams = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(
+          window.location.hash.replace("#", "?")
+        );
+        const hasEmailConfirmationToken = urlParams.has("token_hash");
+        const isPasswordRecovery = hashParams.get("type") === "recovery";
         const isConfirmationFlow =
           currentPath === "/confirmed-email" ||
-          window.location.search.includes("token_hash") ||
-          window.location.hash.includes("access_token");
+          hasEmailConfirmationToken ||
+          isPasswordRecovery;
 
         console.log(
           "🔍 SIGNED_IN - current path:",
@@ -176,8 +206,22 @@ export default function AuthProvider({ children }) {
           "isSignupFlow:",
           isSignupFlow,
           "isConfirmationFlow:",
-          isConfirmationFlow
+          isConfirmationFlow,
+          "hasAccessToken:",
+          hashParams.has("access_token"),
+          "hasTokenHash:",
+          hasEmailConfirmationToken
         );
+
+        // Set justLoggedIn flag for normal logins (not email confirmation)
+        if (!isConfirmationFlow) {
+          console.log("✅ Setting justLoggedIn flag for normal/OAuth login");
+          setJustLoggedIn(true);
+        } else {
+          console.log(
+            "❌ Not setting justLoggedIn flag - this is email confirmation"
+          );
+        }
 
         // Auto-redirect logic will handle navigation based on justLoggedIn flag
         console.log(
@@ -220,7 +264,7 @@ export default function AuthProvider({ children }) {
 
         // Auto-redirect logic will handle navigation based on justLoggedIn flag
         console.log(
-          "✅ Other event - letting auto-redirect useEffect handle navigation"
+          " Other event - letting auto-redirect useEffect handle navigation"
         );
       }
       setIsLoading(false);
