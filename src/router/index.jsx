@@ -6,8 +6,8 @@ import Forgot from "../features/auth/pages/forgot";
 import ProtectedLayout from "./protectedLayout";
 import Home from "../features/home/pages/home";
 import ResetPassword from "../features/auth/pages/resetPassword";
+import ConfirmedEmail from "../features/auth/pages/confirmedEmail";
 import Intro from "../features/intro/intro";
-
 
 const router = createBrowserRouter([
   {
@@ -33,6 +33,10 @@ const router = createBrowserRouter([
       {
         path: "/reset-password",
         element: <ResetPassword />,
+      },
+      {
+        path: "/confirmed-email",
+        element: <ConfirmedEmail />,
       },
 
       // Reuiqred login routes - tất cả routes bên trong đều cần đăng nhập

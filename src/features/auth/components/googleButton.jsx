@@ -1,6 +1,5 @@
 import React from "react";
 import { GoogleIcon } from "../../../core/components";
-import { useAuth } from "../context";
 
 export default function GoogleButton({
   text,
@@ -9,8 +8,8 @@ export default function GoogleButton({
   loading = false,
   size = "default", // "sm", "default", "lg"
   className = "",
+  onClick,
 }) {
-  const { signInWithGoogle } = useAuth();
   const getButtonText = () => {
     if (loading) return "Loading...";
     if (text) return text; // Custom text override
@@ -41,7 +40,7 @@ export default function GoogleButton({
   return (
     <button
       type="button"
-      onClick={signInWithGoogle}
+      onClick={onClick}
       disabled={disabled || loading}
       className={`
         w-full bg-white border border-gray-300 text-gray-700 font-semibold rounded-xl 

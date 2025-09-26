@@ -9,10 +9,13 @@ export const AuthService = {
         password,
         options: {
           data: options.metadata || {},
+          emailRedirectTo: window.location.origin + "/confirmed-email",
         },
       });
 
       if (error) throw error;
+
+      console.log("Sign up successful:", data.user?.email);
       return { success: true, data, error: null };
     } catch (error) {
       console.error("Sign up error:", error.message);

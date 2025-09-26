@@ -9,21 +9,121 @@ export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState(null);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  const [isSignupFlow, setIsSignupFlow] = useState(false);
+  const [isEmailConfirmation, setIsEmailConfirmation] = useState(false);
+  const [justLoggedIn, setJustLoggedIn] = useState(false);
   const navigate = useNavigate();
 
-  // Auto-redirect to dashboard if logged in and at intro or root
+  // Check if current URL is email confirmation and handle logout + redirect
   useEffect(() => {
-    if (!isLoading && user) {
-      const path = window.location.pathname;
-      if (
-        path === "/signin" ||
-        path === "/reset-password" ||
-        path === "/signup"
-      ) {
-        navigate("/home", { replace: true });
-      }
+    const path = window.location.pathname;
+    const urlParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(
+      window.location.hash.replace("#", "?")
+    );
+
+    // Detect email confirmation scenarios
+    const isEmailConfirmPage = path === "/confirmed-email";
+    const hasConfirmationParams =
+      urlParams.has("token_hash") ||
+      hashParams.has("access_token") ||
+      hashParams.has("type");
+
+    if (isEmailConfirmPage || hasConfirmationParams) {
+      console.log(
+        "🔍 Email confirmation detected - logging out and redirecting to signin:",
+        {
+          path,
+          urlParams: Object.fromEntries(urlParams),
+          hashParams: Object.fromEntries(hashParams),
+        }
+      );
+      setIsEmailConfirmation(true);
+
+      // Logout any existing session and redirect to signin
+      setTimeout(async () => {
+        try {
+          await AuthService.signOut();
+          console.log("✅ Logged out successfully after email confirmation");
+          navigate("/signin", { replace: true });
+        } catch (error) {
+          console.error("❌ Logout failed after email confirmation:", error);
+          // Still redirect to signin even if logout fails
+          navigate("/signin", { replace: true });
+        }
+      }, 1000); // Small delay to allow confirmation process to complete
+    } else {
+      setIsEmailConfirmation(false);
     }
-  }, [user, isLoading, navigate]);
+  }, [navigate]);
+
+  // Auto-redirect to dashboard if logged in and at signin page
+  useEffect(() => {
+    const path = window.location.pathname;
+
+    // Check if coming from email confirmation in real-time
+    const urlParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(
+      window.location.hash.replace("#", "?")
+    );
+    const hasConfirmationParams =
+      urlParams.has("token_hash") ||
+      hashParams.has("access_token") ||
+      hashParams.has("type");
+    const isCurrentlyEmailConfirmation =
+      path === "/confirmed-email" || hasConfirmationParams;
+
+    console.log("🔍 Auto-redirect useEffect triggered:", {
+      path,
+      user: !!user,
+      isLoading,
+      isPasswordRecovery,
+      isSignupFlow,
+      isEmailConfirmation,
+      isCurrentlyEmailConfirmation,
+      condition:
+        !isLoading &&
+        user &&
+        !isPasswordRecovery &&
+        !isSignupFlow &&
+        !isEmailConfirmation &&
+        !isCurrentlyEmailConfirmation,
+    });
+
+    // Only redirect if user just logged in (not from existing session)
+    if (
+      !isLoading &&
+      user &&
+      justLoggedIn &&
+      !isPasswordRecovery &&
+      !isSignupFlow
+    ) {
+      console.log(
+        "🔍 Auto-redirect check passed for fresh login, checking path:",
+        path
+      );
+      // Only redirect from signin page, allow access to intro (/) and confirmed-email
+      if (path === "/signin") {
+        console.log("✅ Redirecting from signin to /home");
+        navigate("/home", { replace: true });
+        setJustLoggedIn(false); // Reset flag after redirect
+      } else {
+        console.log("✅ Staying on current path:", path);
+        setJustLoggedIn(false); // Reset flag
+      }
+    } else {
+      console.log("❌ Auto-redirect conditions not met - no fresh login");
+    }
+  }, [
+    user,
+    isLoading,
+    isPasswordRecovery,
+    isSignupFlow,
+    isEmailConfirmation,
+    justLoggedIn,
+    navigate,
+  ]);
 
   // Initialize auth state
   useEffect(() => {
@@ -42,20 +142,93 @@ export default function AuthProvider({ children }) {
     const {
       data: { subscription },
     } = AuthService.onAuthStateChange((event, session) => {
-      console.log("Auth state changed:", event, session?.user?.email);
+      console.log("🔥 Auth state changed:", {
+        event,
+        userEmail: session?.user?.email,
+        currentPath: window.location.pathname,
+        timestamp: new Date().toISOString(),
+      });
       setSession(session);
-      // Chỉ set userId khi KHÔNG phải event reset password
-      if (event !== "PASSWORD_RECOVERY") {
+
+      if (event === "PASSWORD_RECOVERY") {
+        // User đang trong quá trình reset password
+        console.log("Password recovery event detected");
+        setIsPasswordRecovery(true);
         setUserId(session?.user?.id || null);
         setUser(session?.user || null);
+      } else if (event === "SIGNED_IN") {
+        // User đã đăng nhập thành công (có thể sau khi reset password)
+        console.log("🔍 SIGNED_IN event - user signed in");
+        setIsPasswordRecovery(false);
+        setUserId(session?.user?.id || null);
+        setUser(session?.user || null);
+
+        // Chỉ redirect khi user đang ở trang signin và KHÔNG phải email confirmation
+        const currentPath = window.location.pathname;
+        const isConfirmationFlow =
+          currentPath === "/confirmed-email" ||
+          window.location.search.includes("token_hash") ||
+          window.location.hash.includes("access_token");
+
+        console.log(
+          "🔍 SIGNED_IN - current path:",
+          currentPath,
+          "isSignupFlow:",
+          isSignupFlow,
+          "isConfirmationFlow:",
+          isConfirmationFlow
+        );
+
+        // Auto-redirect logic will handle navigation based on justLoggedIn flag
+        console.log(
+          "✅ SIGNED_IN - letting auto-redirect useEffect handle navigation"
+        );
+      } else if (event === "SIGNED_UP") {
+        // User vừa đăng ký thành công - không redirect ngay
+        console.log(
+          "User signed up, staying on current page for email verification"
+        );
+        setIsSignupFlow(true);
+        setUserId(session?.user?.id || null);
+        setUser(session?.user || null);
+      } else if (event === "SIGNED_OUT") {
+        // User đã đăng xuất
+        setIsPasswordRecovery(false);
+        setIsSignupFlow(false);
+        setUserId(null);
+        setUser(null);
+      } else if (event === "INITIAL_SESSION") {
+        // Initial session check - không thay đổi state nếu đang trong signup flow
+        console.log(
+          "Initial session check:",
+          session?.user?.email || "no user"
+        );
+        if (!isSignupFlow) {
+          setUserId(session?.user?.id || null);
+          setUser(session?.user || null);
+        }
+      } else {
+        // Các event khác
+        console.log(
+          "🔍 Other auth event:",
+          event,
+          "path:",
+          window.location.pathname
+        );
+        setUserId(session?.user?.id || null);
+        setUser(session?.user || null);
+
+        // Auto-redirect logic will handle navigation based on justLoggedIn flag
+        console.log(
+          "✅ Other event - letting auto-redirect useEffect handle navigation"
+        );
       }
-      // Khi reset password, giữ nguyên userId (đã là null sau khi đăng xuất)
       setIsLoading(false);
     });
 
     // Cleanup subscription
     return () => subscription.unsubscribe();
-  }, []);
+  }, [navigate, isSignupFlow]);
 
   const login = async (email, password) => {
     setIsLoading(true);
@@ -65,6 +238,10 @@ export default function AuthProvider({ children }) {
       if (result.success) {
         // User state will be updated by the auth state change listener
         console.log("Login successful:", result.data.user.email);
+
+        // Mark as fresh login to trigger redirect
+        setJustLoggedIn(true);
+
         return { success: true, data: result.data };
       } else {
         throw result.error;
@@ -118,6 +295,7 @@ export default function AuthProvider({ children }) {
 
   const signup = async (userData) => {
     setIsLoading(true);
+    setIsSignupFlow(true); // Đánh dấu đang trong quá trình đăng ký
     try {
       const result = await AuthService.signUp(
         userData.email,
@@ -131,12 +309,32 @@ export default function AuthProvider({ children }) {
 
       if (result.success) {
         console.log("Signup successful:", result.data.user?.email);
-        return { success: true, data: result.data };
+
+        // Check if email confirmation is required
+        if (
+          !result.data.session &&
+          result.data.user &&
+          !result.data.user.email_confirmed_at
+        ) {
+          console.log("Email confirmation required - user not logged in yet");
+          // User cần confirm email, không set user state
+          return { success: true, data: result.data, needsConfirmation: true };
+        }
+
+        // Reset signup flow sau khi SignUpForm redirect hoàn tất
+        setTimeout(() => {
+          console.log("Resetting signup flow state");
+          setIsSignupFlow(false);
+        }, 3500); // Timeout lớn hơn SignUpForm redirect (2500ms)
+
+        return { success: true, data: result.data, needsConfirmation: false };
       } else {
+        setIsSignupFlow(false);
         throw result.error;
       }
     } catch (error) {
       console.error("Signup failed:", error);
+      setIsSignupFlow(false);
       throw error;
     } finally {
       setIsLoading(false);
@@ -162,16 +360,39 @@ export default function AuthProvider({ children }) {
     }
   };
 
+  const updatePassword = async (newPassword) => {
+    setIsLoading(true);
+    try {
+      const result = await AuthService.updatePassword(newPassword);
+
+      if (result.success) {
+        console.log("Password updated successfully");
+        setIsPasswordRecovery(false); // Reset password recovery state
+        return { success: true, data: result.data };
+      } else {
+        throw result.error;
+      }
+    } catch (error) {
+      console.error("Update password failed:", error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const value = {
     userId,
     user,
     session,
     isLoading,
+    isPasswordRecovery,
+    isSignupFlow,
     login,
     signInWithGoogle,
     logout,
     signup,
     resetPassword,
+    updatePassword,
     isAuthenticated: !!userId,
   };
 

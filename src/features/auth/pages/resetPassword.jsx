@@ -13,7 +13,7 @@ import {
 import { useAuth } from "../context";
 
 function ResetPassword() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isPasswordRecovery, updatePassword } = useAuth();
   const [formData, setFormData] = useState({
     password: "",
     confirmPassword: "",
@@ -40,7 +40,9 @@ function ResetPassword() {
   if (isLoading) {
     return null;
   }
-  if (user) {
+
+  // Chỉ redirect về home nếu user đã đăng nhập VÀ KHÔNG đang trong quá trình reset password
+  if (user && !isPasswordRecovery) {
     return <Navigate to="/home" replace />;
   }
 
@@ -74,7 +76,7 @@ function ResetPassword() {
     if (Object.keys(newErrors).length === 0) {
       setFormLoading(true);
       try {
-        const result = await AuthService.updatePassword(formData.password);
+        const result = await updatePassword(formData.password);
         setFormLoading(false);
         if (result.success) {
           toast.success("Đổi mật khẩu thành công!");
