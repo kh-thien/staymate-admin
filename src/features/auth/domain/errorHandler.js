@@ -51,24 +51,21 @@ export const mapSupabaseError = (error) => {
     };
   }
 
-  // Invalid password (sign in)
-  if (
-    message.includes("invalid login credentials") ||
-    message.includes("email not confirmed")
-  ) {
-    return {
-      type: AuthErrors.INVALID_PASSWORD,
-      message: "Invalid email or password. Please check your credentials.",
-      field: null,
-    };
-  }
-
-  // Email not confirmed
+  // Email not confirmed - check this FIRST before invalid credentials
   if (message.includes("email not confirmed")) {
     return {
       type: AuthErrors.EMAIL_NOT_CONFIRMED,
       message:
         "Please check your email and verify your account before signing in.",
+      field: null,
+    };
+  }
+
+  // Invalid password (sign in) - check this AFTER email confirmation
+  if (message.includes("invalid login credentials")) {
+    return {
+      type: AuthErrors.INVALID_PASSWORD,
+      message: "Invalid email or password. Please check your credentials.",
       field: null,
     };
   }

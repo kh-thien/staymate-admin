@@ -40,38 +40,28 @@ const SimpleSignUpForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("🔍 SignUp form submitted");
     setIsLoading(true);
     setErrors({});
 
     // Validate form
     const validation = validateSignUpForm(formData, acceptTerms);
     if (!validation.isValid) {
-      console.log("❌ Form validation failed:", validation.errors);
       setErrors(validation.errors);
       setIsLoading(false);
       return;
     }
 
     try {
-      console.log("🔍 Calling signup service...");
       const result = await signup({
         fullName: formData.fullName,
         email: formData.email,
         password: formData.password,
       });
 
-      console.log("✅ Signup result:", result);
-
       if (result.success) {
         const message = result.needsConfirmation
           ? "Registration successful! Please check your email to verify your account before signing in."
           : "Registration successful! You can now sign in.";
-
-        console.log(
-          "🔍 Signup success - showing toast and preparing redirect:",
-          message
-        );
 
         // Show toast notification
         toast.success(message, {
@@ -94,8 +84,11 @@ const SimpleSignUpForm = () => {
           }, 3500); // Redirect after toast finishes
         }, 500); // Small delay before resetting form
       } else {
-        console.log("❌ Signup failed - no success flag");
-        const errorMsg = "Registration failed. Please try again.";
+        // Use actual error message from result, fallback to generic message
+        const errorMsg =
+          result.error?.message ||
+          result.message ||
+          "Registration failed. Please try again.";
         toast.error(errorMsg, {
           position: "top-right",
           autoClose: 4000,
@@ -127,23 +120,17 @@ const SimpleSignUpForm = () => {
       await signInWithGoogle();
     } catch (error) {
       console.error("Google sign up failed:", error);
-      const errorMsg = "Google sign up failed. Please try again.";
-      toast.error(errorMsg, {
+      // Use actual error message from the error object
+      const errorMessage = createErrorMessage(error);
+      toast.error(errorMessage.message, {
         position: "top-right",
         autoClose: 4000,
       });
-      setErrors({ submit: errorMsg });
+      setErrors({ submit: errorMessage.message });
     } finally {
       setIsLoading(false);
     }
   };
-
-  console.log("🔍 SimpleSignUpForm render:", {
-    isLoading,
-    hasErrors: Object.keys(errors).length > 0,
-    formData: formData.email,
-    timestamp: new Date().toISOString(),
-  });
 
   return (
     <div className="relative bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl p-8 border border-white/20">

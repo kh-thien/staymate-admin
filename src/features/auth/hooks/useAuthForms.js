@@ -4,8 +4,8 @@
  */
 import { useState, useCallback } from "react";
 import { useAuth } from "../context";
-import { validateSignInForm, validateSignUpForm } from "../domain/validators";
-import { createSignInData, createSignUpData } from "../domain/types";
+import { validateSignUpForm } from "../domain/validators";
+import { createSignUpData } from "../domain/types";
 import {
   createErrorMessage,
   shouldShowAsFieldError,
@@ -14,82 +14,6 @@ import {
 } from "../domain/errorHandler";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
-
-// Sign In Form Hook
-export const useSignInForm = () => {
-  const { login, signInWithGoogle } = useAuth();
-  const [formData, setFormData] = useState(createSignInData());
-  const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleChange = useCallback(
-    (field, value) => {
-      setFormData((prev) => ({ ...prev, [field]: value }));
-
-      // Clear field error when user starts typing
-      if (errors[field]) {
-        setErrors((prev) => ({ ...prev, [field]: null }));
-      }
-    },
-    [errors]
-  );
-
-  const handleSubmit = useCallback(
-    async (e) => {
-      e.preventDefault();
-      setIsLoading(true);
-      setErrors({});
-
-      // Validate form
-      const validation = validateSignInForm(formData);
-      if (!validation.isValid) {
-        setErrors(validation.errors);
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        await login(formData.email, formData.password);
-        // Success handled by AuthProvider navigation
-      } catch (error) {
-        console.error("Sign in failed:", error);
-
-        if (shouldShowAsFieldError(error)) {
-          setErrors(getFieldErrors(error));
-        } else {
-          const toastMessage = getToastMessage(error);
-          if (toastMessage) {
-            toast.error(toastMessage);
-          }
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [formData, login]
-  );
-
-  const handleGoogleSignIn = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      await signInWithGoogle();
-    } catch (error) {
-      console.error("Google sign in failed:", error);
-      toast.error("Google sign in failed. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [signInWithGoogle]);
-
-  return {
-    formData,
-    errors,
-    isLoading,
-    handleChange,
-    handleSubmit,
-    handleGoogleSignIn,
-  };
-};
 
 // Sign Up Form Hook
 export const useSignUpForm = () => {

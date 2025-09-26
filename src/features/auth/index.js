@@ -15,11 +15,7 @@
 export { AuthProvider, AuthContext, useAuth } from "./context";
 
 // Components (Main API)
-export {
-  SignInForm,
-  ForgotPasswordForm,
-  GoogleButton,
-} from "./components";
+export { GoogleButton } from "./components";
 
 // Pages
 export { default as SignInPage } from "./pages/signin";

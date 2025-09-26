@@ -105,6 +105,43 @@ export default function AuthProvider({ children }) {
         !isCurrentlyEmailConfirmation,
     });
 
+    // Force redirect to reset-password if user is in password recovery session
+    // Check both state and URL hash for password recovery
+    const currentHashParams = new URLSearchParams(
+      window.location.hash.replace("#", "?")
+    );
+    const hasRecoveryToken = currentHashParams.get("type") === "recovery";
+    const isInPasswordRecoverySession = isPasswordRecovery || hasRecoveryToken;
+
+    if (
+      !isLoading &&
+      user &&
+      isInPasswordRecoverySession &&
+      path !== "/reset-password"
+    ) {
+      console.log(
+        "� FORCING REDIRECT - User in password recovery session but not on reset-password page:",
+        {
+          path,
+          isPasswordRecovery,
+          user: !!user,
+          isLoading,
+        }
+      );
+      navigate("/reset-password", { replace: true });
+      return;
+    } else if (!isLoading && user && path !== "/reset-password") {
+      console.log(
+        "🔓 NOT forcing redirect:",
+        {
+          isPasswordRecovery,
+          hasRecoveryToken,
+          isInPasswordRecoverySession,
+          path,
+        }
+      );
+    }
+
     // Only redirect if user just logged in (not from existing session)
     if (
       !isLoading &&
@@ -195,22 +232,34 @@ export default function AuthProvider({ children }) {
       } else if (event === "SIGNED_IN") {
         // User đã đăng nhập thành công (có thể sau khi reset password hoặc OAuth)
         console.log("🔍 SIGNED_IN event - user signed in");
-        setIsPasswordRecovery(false);
-        setUserId(session?.user?.id || null);
-        setUser(session?.user || null);
 
-        // Check if this is email confirmation vs normal login/OAuth
+        // Check if this is password recovery flow first
         const currentPath = window.location.pathname;
         const urlParams = new URLSearchParams(window.location.search);
         const hashParams = new URLSearchParams(
           window.location.hash.replace("#", "?")
         );
         const hasEmailConfirmationToken = urlParams.has("token_hash");
-        const isPasswordRecovery = hashParams.get("type") === "recovery";
+        const isPasswordRecoveryFromURL = hashParams.get("type") === "recovery";
+        const isOnResetPage = currentPath === "/reset-password";
+
+        // Check if we're currently in a password recovery session
+        const isCurrentlyPasswordRecovery =
+          isPasswordRecovery || isPasswordRecoveryFromURL || isOnResetPage;
+
+        // Only reset password recovery state if NOT in password recovery flow
+        if (!isCurrentlyPasswordRecovery) {
+          setIsPasswordRecovery(false);
+        }
+
+        setUserId(session?.user?.id || null);
+        setUser(session?.user || null);
+
+        // Check if this is email confirmation vs normal login/OAuth vs password recovery
         const isConfirmationFlow =
           currentPath === "/confirmed-email" ||
           hasEmailConfirmationToken ||
-          isPasswordRecovery;
+          isCurrentlyPasswordRecovery;
 
         console.log(
           "🔍 SIGNED_IN - current path:",
@@ -219,23 +268,27 @@ export default function AuthProvider({ children }) {
           isSignupFlow,
           "isConfirmationFlow:",
           isConfirmationFlow,
+          "isPasswordRecoveryFromURL:",
+          isPasswordRecoveryFromURL,
+          "isCurrentlyPasswordRecovery:",
+          isCurrentlyPasswordRecovery,
+          "isOnResetPage:",
+          isOnResetPage,
           "hasAccessToken:",
           hashParams.has("access_token"),
           "hasTokenHash:",
           hasEmailConfirmationToken
         );
 
-        // Set justLoggedIn flag for normal logins (not email confirmation)
+        // Set justLoggedIn flag for normal logins (not email confirmation or password recovery)
         if (!isConfirmationFlow) {
           console.log("✅ Setting justLoggedIn flag for normal/OAuth login");
           setJustLoggedIn(true);
         } else {
           console.log(
-            "❌ Not setting justLoggedIn flag - this is email confirmation"
+            "❌ Not setting justLoggedIn flag - this is email confirmation or password recovery"
           );
-        }
-
-        // Auto-redirect logic will handle navigation based on justLoggedIn flag
+        } // Auto-redirect logic will handle navigation based on justLoggedIn flag
         console.log(
           "✅ SIGNED_IN - letting auto-redirect useEffect handle navigation"
         );
@@ -284,10 +337,10 @@ export default function AuthProvider({ children }) {
 
     // Cleanup subscription
     return () => subscription.unsubscribe();
-  }, [navigate, isSignupFlow]);
+  }, [navigate, isSignupFlow, isPasswordRecovery]);
 
   const login = async (email, password) => {
-    setIsLoading(true);
+    // Don't set isLoading here - let form manage its own loading state
     try {
       const result = await AuthService.signIn(email, password);
 
@@ -305,13 +358,12 @@ export default function AuthProvider({ children }) {
     } catch (error) {
       console.error("Login failed:", error);
       throw error;
-    } finally {
-      setIsLoading(false);
     }
+    // No finally block - let form handle loading state
   };
 
   const signInWithGoogle = async () => {
-    setIsLoading(true);
+    // Don't set isLoading here - let form manage its own loading state
     try {
       const result = await AuthService.signInWithProvider("google");
       console.log("Google sign-in initiated:", result);
@@ -324,9 +376,8 @@ export default function AuthProvider({ children }) {
       console.error("Login failed:", error);
       navigate("/signin");
       throw error;
-    } finally {
-      setIsLoading(false);
     }
+    // No finally block - let form handle loading state
   };
 
   const logout = async () => {

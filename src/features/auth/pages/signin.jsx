@@ -1,6 +1,6 @@
 import React from "react";
 import { AuthLayout, BrandLogo } from "../../../core/components";
-import SignInForm from "../components/signInForm";
+import { SimpleSignInForm } from "../components";
 import { useAuth } from "../context";
 import { Navigate } from "react-router-dom";
 
@@ -14,7 +14,7 @@ export default function SignIn() {
         title="Welcome back"
         subtitle="Enter your email and password to sign in"
       />
-      <SignInForm />
+      <SimpleSignInForm />
     </AuthLayout>
   );
 }
