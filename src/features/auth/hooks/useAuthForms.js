@@ -4,16 +4,8 @@
  */
 import { useState, useCallback } from "react";
 import { useAuth } from "../context";
-import {
-  validateSignInForm,
-  validateSignUpForm,
-  validateForgotPasswordForm,
-} from "../domain/validators";
-import {
-  createSignInData,
-  createSignUpData,
-  createForgotPasswordData,
-} from "../domain/types";
+import { validateSignInForm, validateSignUpForm } from "../domain/validators";
+import { createSignInData, createSignUpData } from "../domain/types";
 import {
   createErrorMessage,
   shouldShowAsFieldError,
@@ -202,75 +194,5 @@ export const useSignUpForm = () => {
     handleSubmit,
     handleGoogleSignUp,
     setAcceptTerms,
-  };
-};
-
-// Forgot Password Form Hook
-export const useForgotPasswordForm = () => {
-  const { resetPassword } = useAuth();
-  const [formData, setFormData] = useState(createForgotPasswordData());
-  const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
-
-  const handleChange = useCallback(
-    (field, value) => {
-      setFormData((prev) => ({ ...prev, [field]: value }));
-
-      // Clear field error when user starts typing
-      if (errors[field]) {
-        setErrors((prev) => ({ ...prev, [field]: null }));
-      }
-    },
-    [errors]
-  );
-
-  const handleSubmit = useCallback(
-    async (e) => {
-      e.preventDefault();
-      setIsLoading(true);
-      setErrors({});
-
-      // Validate form
-      const validation = validateForgotPasswordForm(formData);
-      if (!validation.isValid) {
-        setErrors(validation.errors);
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        await resetPassword(formData.email);
-        setIsSubmitted(true);
-      } catch (error) {
-        console.error("Reset password failed:", error);
-
-        if (shouldShowAsFieldError(error)) {
-          setErrors(getFieldErrors(error));
-        } else {
-          const errorMessage = createErrorMessage(error);
-          setErrors({ submit: errorMessage.message });
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [formData, resetPassword]
-  );
-
-  const handleTryAgain = useCallback(() => {
-    setIsSubmitted(false);
-    setFormData(createForgotPasswordData());
-    setErrors({});
-  }, []);
-
-  return {
-    formData,
-    errors,
-    isLoading,
-    isSubmitted,
-    handleChange,
-    handleSubmit,
-    handleTryAgain,
   };
 };

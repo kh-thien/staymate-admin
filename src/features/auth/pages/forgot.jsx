@@ -1,6 +1,6 @@
 import React from "react";
 import { AuthLayout, BrandLogo } from "../../../core/components";
-import { ForgotPasswordForm } from "../components";
+import SimpleForgotPasswordForm from "../components/SimpleForgotPasswordForm";
 import { useAuth } from "../context";
 import { Navigate } from "react-router-dom";
 
@@ -14,7 +14,7 @@ export default function Forgot() {
         title="Forgot Password?"
         subtitle="No worries, we'll help you reset it"
       />
-      <ForgotPasswordForm />
+      <SimpleForgotPasswordForm />
     </AuthLayout>
   );
 }

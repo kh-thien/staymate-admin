@@ -30,11 +30,10 @@ export default function AuthProvider({ children }) {
 
     // Only treat as email confirmation if:
     // 1. On confirmed-email page, OR
-    // 2. Has token_hash (email verification), OR
-    // 3. Has type=recovery (password reset)
-    // BUT NOT OAuth login (which has access_token without token_hash)
+    // 2. Has token_hash (email verification)
+    // BUT NOT password recovery (which has type=recovery) or OAuth login
     const isEmailConfirmation =
-      isEmailConfirmPage || hasEmailConfirmationToken || isPasswordRecovery;
+      isEmailConfirmPage || (hasEmailConfirmationToken && !isPasswordRecovery);
 
     if (isEmailConfirmation) {
       console.log(
@@ -88,11 +87,10 @@ export default function AuthProvider({ children }) {
 
     // Only treat as email confirmation if:
     // 1. On confirmed-email page, OR
-    // 2. Has token_hash (email verification), OR
-    // 3. Has type=recovery (password reset)
-    // BUT NOT OAuth login (which has access_token without token_hash)
+    // 2. Has token_hash (email verification)
+    // BUT NOT password recovery (which has type=recovery)
     const isCurrentlyEmailConfirmation =
-      isEmailConfirmPage || hasEmailConfirmationToken || isPasswordRecovery;
+      isEmailConfirmPage || (hasEmailConfirmationToken && !isPasswordRecovery);
 
     console.log("🔍 Auto-redirect useEffect triggered:", {
       path,
@@ -149,6 +147,22 @@ export default function AuthProvider({ children }) {
     navigate,
   ]);
 
+  // Handle password recovery redirect on mount
+  useEffect(() => {
+    const hashParams = new URLSearchParams(
+      window.location.hash.replace("#", "?")
+    );
+    const isPasswordRecovery = hashParams.get("type") === "recovery";
+    const currentPath = window.location.pathname;
+
+    if (isPasswordRecovery && currentPath !== "/reset-password") {
+      console.log(
+        "Password recovery URL detected - redirecting to reset-password page"
+      );
+      navigate("/reset-password" + window.location.hash, { replace: true });
+    }
+  }, [navigate]); // Run once on mount
+
   // Initialize auth state
   useEffect(() => {
     // Get initial session
@@ -176,10 +190,15 @@ export default function AuthProvider({ children }) {
 
       if (event === "PASSWORD_RECOVERY") {
         // User đang trong quá trình reset password
-        console.log("Password recovery event detected");
+        console.log(
+          "Password recovery event detected - navigating to reset-password page"
+        );
         setIsPasswordRecovery(true);
         setUserId(session?.user?.id || null);
         setUser(session?.user || null);
+
+        // Navigate to reset-password page with URL params
+        navigate("/reset-password" + window.location.hash, { replace: true });
       } else if (event === "SIGNED_IN") {
         // User đã đăng nhập thành công (có thể sau khi reset password hoặc OAuth)
         console.log("🔍 SIGNED_IN event - user signed in");
