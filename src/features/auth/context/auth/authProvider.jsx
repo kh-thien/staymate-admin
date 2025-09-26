@@ -35,9 +35,11 @@ export default function AuthProvider({ children }) {
     const isEmailConfirmation =
       isEmailConfirmPage || (hasEmailConfirmationToken && !isPasswordRecovery);
 
-    if (isEmailConfirmation) {
+    // Only logout and redirect if NOT already on confirmed-email page
+    // If already on confirmed-email page, let the page handle its own logic
+    if (isEmailConfirmation && !isEmailConfirmPage) {
       console.log(
-        "🔍 Email confirmation detected - logging out and redirecting to signin:",
+        "🔍 Email confirmation detected - redirecting to confirmed-email page:",
         {
           path,
           urlParams: Object.fromEntries(urlParams),
@@ -49,18 +51,9 @@ export default function AuthProvider({ children }) {
       );
       setIsEmailConfirmation(true);
 
-      // Logout any existing session and redirect to signin
-      setTimeout(async () => {
-        try {
-          await AuthService.signOut();
-          console.log("✅ Logged out successfully after email confirmation");
-          navigate("/signin", { replace: true });
-        } catch (error) {
-          console.error("❌ Logout failed after email confirmation:", error);
-          // Still redirect to signin even if logout fails
-          navigate("/signin", { replace: true });
-        }
-      }, 1000); // Small delay to allow confirmation process to complete
+      // Redirect to confirmed-email page to show success message
+      // The confirmed-email page will handle logout after showing success
+      navigate("/confirmed-email" + window.location.hash, { replace: true });
     } else {
       console.log("🔍 Not email confirmation - allowing normal OAuth flow:", {
         path,
@@ -357,7 +350,8 @@ export default function AuthProvider({ children }) {
   };
 
   const signup = async (userData) => {
-    setIsLoading(true);
+    console.log("🔥 AuthProvider signup called:", userData.email);
+    // Không set isLoading ở đây vì form tự quản lý loading state
     setIsSignupFlow(true); // Đánh dấu đang trong quá trình đăng ký
     try {
       const result = await AuthService.signUp(
@@ -369,6 +363,13 @@ export default function AuthProvider({ children }) {
           },
         }
       );
+
+      console.log("🔥 AuthProvider signup result:", {
+        success: result.success,
+        hasSession: !!result.data?.session,
+        hasUser: !!result.data?.user,
+        emailConfirmed: result.data?.user?.email_confirmed_at,
+      });
 
       if (result.success) {
         console.log("Signup successful:", result.data.user?.email);
@@ -388,7 +389,7 @@ export default function AuthProvider({ children }) {
         setTimeout(() => {
           console.log("Resetting signup flow state");
           setIsSignupFlow(false);
-        }, 3500); // Timeout lớn hơn SignUpForm redirect (2500ms)
+        }, 5000); // Timeout lớn hơn SignUpForm redirect để đảm bảo không bị conflict
 
         return { success: true, data: result.data, needsConfirmation: false };
       } else {
@@ -399,9 +400,8 @@ export default function AuthProvider({ children }) {
       console.error("Signup failed:", error);
       setIsSignupFlow(false);
       throw error;
-    } finally {
-      setIsLoading(false);
     }
+    // Không có finally block để set isLoading vì form tự quản lý
   };
 
   const resetPassword = async (email) => {

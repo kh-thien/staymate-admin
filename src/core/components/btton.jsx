@@ -7,6 +7,7 @@ export default function Button({
   onClick,
   className = "",
   disabled = false,
+  isLoading = false,
   ...props
 }) {
   const baseClasses =
@@ -19,15 +20,14 @@ export default function Button({
       "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 shadow-sm",
   };
 
-  const disabledClasses = disabled
-    ? "opacity-50 cursor-not-allowed transform-none"
-    : "";
+  const disabledClasses =
+    disabled || isLoading ? "opacity-50 cursor-not-allowed transform-none" : "";
 
   return (
     <button
       type={type}
       onClick={onClick}
-      disabled={disabled}
+      disabled={disabled || isLoading}
       className={`${baseClasses} ${variants[variant]} ${disabledClasses} ${className}`}
       {...props}
     >
