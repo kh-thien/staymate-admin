@@ -9,7 +9,6 @@ import ResetPassword from "../features/auth/pages/resetPassword";
 import ConfirmedEmail from "../features/auth/pages/confirmedEmail";
 import Intro from "../features/intro/intro";
 import Dashboard from "../features/dashboard/pages/dashboard";
-import Messages from "../features/messages/pages/messages";
 
 const router = createBrowserRouter([
   {
@@ -53,10 +52,7 @@ const router = createBrowserRouter([
             path: "/dashboard",
             element: <Dashboard />,
           },
-          {
-            path: "/messages",
-            element: <Messages />,
-          },
+
         ],
       },
     ],

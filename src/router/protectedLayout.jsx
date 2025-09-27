@@ -1,8 +1,7 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../features/auth/context";
-import AppLayout from "../core/layout/appLayout";
-
-
+import AppLayout from "../features/appLayout/appLayout";
+import { AppLayoutProvider } from "../features/appLayout/context/appLayoutContext";
 
 const ProtectedLayout = () => {
   const { user, isLoading } = useAuth();
@@ -22,8 +21,12 @@ const ProtectedLayout = () => {
     return <Navigate to="/signin" replace />;
   }
 
-  // Nếu đã đăng nhập, render AppLayout
-  return <AppLayout />;
+  // Nếu đã đăng nhập, render AppLayout wrapped in AppLayoutProvider
+  return (
+    <AppLayoutProvider>
+      <AppLayout />
+    </AppLayoutProvider>
+  );
 };
 
 export default ProtectedLayout;
