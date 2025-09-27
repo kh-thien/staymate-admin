@@ -1,5 +1,8 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "../features/auth/context";
+import AppLayout from "../core/layout/appLayout";
+
+
 
 const ProtectedLayout = () => {
   const { user, isLoading } = useAuth();
@@ -19,13 +22,8 @@ const ProtectedLayout = () => {
     return <Navigate to="/signin" replace />;
   }
 
-  // Nếu đã đăng nhập, render Outlet cho các child routes
-  return (
-    <div className="protected-layout">
-      {/* Có thể thêm navbar, sidebar chung cho các trang cần đăng nhập */}
-      <Outlet />
-    </div>
-  );
+  // Nếu đã đăng nhập, render AppLayout
+  return <AppLayout />;
 };
 
 export default ProtectedLayout;

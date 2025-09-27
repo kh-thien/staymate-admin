@@ -8,6 +8,8 @@ import Home from "../features/home/pages/home";
 import ResetPassword from "../features/auth/pages/resetPassword";
 import ConfirmedEmail from "../features/auth/pages/confirmedEmail";
 import Intro from "../features/intro/intro";
+import Dashboard from "../features/dashboard/pages/dashboard";
+import Messages from "../features/messages/pages/messages";
 
 const router = createBrowserRouter([
   {
@@ -39,13 +41,21 @@ const router = createBrowserRouter([
         element: <ConfirmedEmail />,
       },
 
-      // Reuiqred login routes - tất cả routes bên trong đều cần đăng nhập
+      // Required login routes - tất cả routes bên trong đều cần đăng nhập
       {
         element: <ProtectedLayout />,
         children: [
           {
             path: "/home",
             element: <Home />,
+          },
+          {
+            path: "/dashboard",
+            element: <Dashboard />,
+          },
+          {
+            path: "/messages",
+            element: <Messages />,
           },
         ],
       },
