@@ -9,6 +9,11 @@ import ResetPassword from "../features/auth/pages/resetPassword";
 import ConfirmedEmail from "../features/auth/pages/confirmedEmail";
 import Intro from "../features/intro/intro";
 import Dashboard from "../features/dashboard/pages/dashboard";
+import Rooms from "../features/rooms/pages/rooms";
+import Tenants from "../features/tenants/pages/tenants";
+import Contracts from "../features/contracts/pages/contracts";
+import Finance from "../features/finance/pages/finance";
+import Services from "../features/services/pages/services";
 
 const router = createBrowserRouter([
   {
@@ -46,13 +51,32 @@ const router = createBrowserRouter([
         children: [
           {
             path: "/home",
-            element: <Home />,
+            element: <Dashboard />,
+          },
+          {
+            path: "/rooms",
+            element: <Rooms />,
+          },
+          {
+            path: "/tenants",
+            element: <Tenants />,
+          },
+          {
+            path: "/contracts",
+            element: <Contracts />,
+          },
+          {
+            path: "/finance",
+            element: <Finance />,
+          },
+          {
+            path: "/services",
+            element: <Services />,
           },
           {
             path: "/dashboard",
             element: <Dashboard />,
           },
-
         ],
       },
     ],

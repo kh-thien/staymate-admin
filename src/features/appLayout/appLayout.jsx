@@ -1,10 +1,10 @@
 "use client";
+import { Outlet } from "react-router-dom";
 import AppHeader from "./components/appHeader";
 import Sidebar from "./components/sidebar";
 import { useAppLayout } from "./context/useAppLayout";
-import PageContent from "./pageContent";
 
-export default function AppLayout({ children }) {
+export default function AppLayout() {
   const {
     dropdownOpen,
     setDropdownOpen,
@@ -22,7 +22,7 @@ export default function AppLayout({ children }) {
         {/* Main Content */}
         <main className="flex-1 p-8">
           <div className="max-w-[1400px] mx-auto">
-            <PageContent>{children}</PageContent>
+            <Outlet />
           </div>
         </main>
       </div>
