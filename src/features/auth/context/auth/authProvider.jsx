@@ -131,15 +131,12 @@ export default function AuthProvider({ children }) {
       navigate("/reset-password", { replace: true });
       return;
     } else if (!isLoading && user && path !== "/reset-password") {
-      console.log(
-        "🔓 NOT forcing redirect:",
-        {
-          isPasswordRecovery,
-          hasRecoveryToken,
-          isInPasswordRecoverySession,
-          path,
-        }
-      );
+      console.log("🔓 NOT forcing redirect:", {
+        isPasswordRecovery,
+        hasRecoveryToken,
+        isInPasswordRecoverySession,
+        path,
+      });
     }
 
     // Only redirect if user just logged in (not from existing session)
@@ -346,7 +343,13 @@ export default function AuthProvider({ children }) {
 
       if (result.success) {
         // User state will be updated by the auth state change listener
-        console.log("Login successful:", result.data.user.email);
+        console.log("Login successful - Full user data:", {
+          email: result.data.user.email,
+          id: result.data.user.id,
+          metadata: result.data.user.user_metadata,
+          avatarUrl: result.data.user.user_metadata?.avatar_url,
+          fullUserObject: result.data.user,
+        });
 
         // Mark as fresh login to trigger redirect
         setJustLoggedIn(true);
@@ -366,7 +369,12 @@ export default function AuthProvider({ children }) {
     // Don't set isLoading here - let form manage its own loading state
     try {
       const result = await AuthService.signInWithProvider("google");
-      console.log("Google sign-in initiated:", result);
+      console.log("Google sign-in initiated - Full user data:", {
+        user: result.data?.user,
+        metadata: result.data?.user?.user_metadata,
+        avatar: result.data?.user?.user_metadata?.avatar_url,
+        picture: result.data?.user?.user_metadata?.picture, // Google thường trả về ảnh trong trường picture
+      });
       if (result.success) {
         return { success: true, data: result.data };
       } else {

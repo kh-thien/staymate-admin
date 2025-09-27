@@ -28,7 +28,7 @@ export default function AppLayout() {
       </div>
       {(dropdownOpen || notificationOpen) && (
         <div
-          className="fixed inset-0 z-40"
+          className="fixed inset-0 z-10"
           onClick={() => {
             setDropdownOpen(false);
             setNotificationOpen(false);

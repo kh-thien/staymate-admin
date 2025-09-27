@@ -18,6 +18,7 @@ export default function Button({
       "bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 transform hover:scale-[1.02] shadow-lg",
     secondary:
       "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 shadow-sm",
+    danger: "text-red-600 hover:bg-red-50 hover:text-red-700",
   };
 
   const disabledClasses =
