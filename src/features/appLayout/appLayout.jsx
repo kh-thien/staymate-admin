@@ -10,6 +10,8 @@ export default function AppLayout() {
     setDropdownOpen,
     notificationOpen,
     setNotificationOpen,
+    sidebarOpen,
+    sidebarHovered,
   } = useAppLayout();
 
   return (
@@ -20,7 +22,11 @@ export default function AppLayout() {
         {/* Sidebar */}
         <Sidebar />
         {/* Main Content */}
-        <main className="flex-1 p-8">
+        <main
+          className={`flex-1 p-8 transition-all duration-300 ${
+            sidebarOpen || sidebarHovered ? "ml-64" : "ml-16"
+          }`}
+        >
           <div className="max-w-[1400px] mx-auto">
             <Outlet />
           </div>
