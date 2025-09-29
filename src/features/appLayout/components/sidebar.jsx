@@ -7,7 +7,7 @@ export default function Sidebar() {
   const location = useLocation();
   const { sidebarOpen, sidebarHovered, setSidebarHovered } = useAppLayout();
 
-  const menuItems = [
+  const managementItems = [
     {
       name: "Tổng quan",
       path: "/dashboard",
@@ -29,7 +29,7 @@ export default function Sidebar() {
     },
     {
       name: "Quản lý Phòng",
-      path: "/rooms",
+      path: "/property",
       icon: (
         <svg
           className="w-5 h-5"
@@ -129,52 +129,55 @@ export default function Sidebar() {
       <aside
         className={`${
           sidebarOpen || sidebarHovered ? "w-64" : "w-16"
-        } transition-all duration-300 bg-white/95 backdrop-blur-sm border-r border-gray-200 fixed h-full top-0 pt-16 z-20`}
+        } transition-all duration-300 ease-in-out bg-white shadow-lg border-r border-gray-200 fixed h-full top-0 pt-16 z-20`}
         onMouseEnter={() => setSidebarHovered(true)}
         onMouseLeave={() => setSidebarHovered(false)}
       >
-        <nav className="p-3 space-y-1 overflow-y-auto max-h-[calc(100vh-4rem)]">
-          <div
-            className={`text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4 ${
-              !sidebarOpen && !sidebarHovered ? "opacity-0" : "opacity-100"
-            } transition-opacity px-3 py-2 flex items-center gap-2 border-b border-gray-100`}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-            Menu
-          </div>
+        <nav className="p-4 space-y-6 overflow-y-auto max-h-[calc(100vh-4rem)] scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+          {/* Management Section */}
+          <div>
+            <div
+              className={`text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 ${
+                !sidebarOpen && !sidebarHovered ? "opacity-0" : "opacity-100"
+              } transition-opacity px-3 py-2 flex items-center gap-2 border-b border-gray-200 rounded-lg`}
+            >
+              <span className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-500 to-blue-600"></span>
+              Management
+            </div>
 
-          <div className="space-y-1">
-            {menuItems.map((item) => (
-              <button
-                key={item.path}
-                onClick={() => navigate(item.path)}
-                className={`flex items-center gap-3 px-3 py-2.5 w-full text-left rounded-lg transition-all duration-200 relative group ${
-                  location.pathname === item.path
-                    ? "bg-gradient-to-r from-blue-50 to-blue-50/30 text-blue-600 shadow-sm"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                }`}
-                title={item.name}
-              >
-                <div
-                  className={`flex-shrink-0 transition-colors duration-200 ${
+            <div className="space-y-1">
+              {managementItems.map((item) => (
+                <button
+                  key={item.path}
+                  onClick={() => navigate(item.path)}
+                  className={`flex items-center gap-3 px-3 py-3 w-full text-left rounded-xl transition-all duration-200 relative group ${
                     location.pathname === item.path
-                      ? "text-blue-600"
-                      : "text-gray-400 group-hover:text-gray-600"
+                      ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 hover:shadow-sm"
                   }`}
+                  title={item.name}
                 >
-                  {item.icon}
-                </div>
-                <span
-                  className={`${
-                    !sidebarOpen && !sidebarHovered
-                      ? "opacity-0 w-0"
-                      : "opacity-100"
-                  } transition-all duration-200 whitespace-nowrap`}
-                >
-                  {item.name}
-                </span>
-              </button>
-            ))}
+                  <div
+                    className={`flex-shrink-0 transition-colors duration-200 ${
+                      location.pathname === item.path
+                        ? "text-white"
+                        : "text-gray-400 group-hover:text-gray-600"
+                    }`}
+                  >
+                    {item.icon}
+                  </div>
+                  <span
+                    className={`font-medium ${
+                      !sidebarOpen && !sidebarHovered
+                        ? "opacity-0 w-0"
+                        : "opacity-100"
+                    } transition-all duration-200 whitespace-nowrap`}
+                  >
+                    {item.name}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         </nav>
       </aside>

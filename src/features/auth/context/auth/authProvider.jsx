@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { AuthContext } from "./authContext";
 import { AuthService } from "../../services/authServices";
+import { userService } from "../../services/userService";
 import { useNavigate } from "react-router-dom";
 
 // AuthProvider component with Supabase integration
@@ -14,6 +15,69 @@ export default function AuthProvider({ children }) {
   const [isEmailConfirmation, setIsEmailConfirmation] = useState(false);
   const [justLoggedIn, setJustLoggedIn] = useState(false);
   const navigate = useNavigate();
+
+  // Function để lấy thông tin user đầy đủ từ database
+  const fetchUserFromDatabase = async (authUser) => {
+    try {
+      if (!authUser?.id) {
+        console.log("No auth user ID, cannot fetch from database");
+        return null;
+      }
+
+      console.log("Fetching user from database for auth ID:", authUser.id);
+      const dbUser = await userService.getUserByAuthId(authUser.id);
+
+      if (dbUser) {
+        console.log("User found in database:", dbUser);
+        // Kết hợp thông tin từ auth và database
+        return {
+          ...authUser, // Thông tin từ Supabase Auth
+          userid: dbUser.userid, // ID từ database
+          fullName: dbUser.full_name,
+          email: dbUser.email || authUser.email,
+          phone: dbUser.phone,
+          role: dbUser.role,
+          avatarUrl: dbUser.avatar_url,
+          createdAt: dbUser.created_at,
+          updatedAt: dbUser.updated_at,
+        };
+      } else {
+        console.log(
+          "User not found in database - trigger should have created it"
+        );
+        // Trigger đã tự động tạo user, chỉ cần đợi một chút và thử lại
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Đợi 1 giây
+
+        try {
+          const retryUser = await userService.getUserByAuthId(authUser.id);
+          if (retryUser) {
+            console.log("User found after retry:", retryUser);
+            return {
+              ...authUser,
+              userid: retryUser.userid,
+              fullName: retryUser.full_name,
+              email: retryUser.email || authUser.email,
+              phone: retryUser.phone,
+              role: retryUser.role,
+              avatarUrl: retryUser.avatar_url,
+              createdAt: retryUser.created_at,
+              updatedAt: retryUser.updated_at,
+            };
+          }
+        } catch (retryError) {
+          console.error("Error retrying user fetch:", retryError);
+        }
+
+        // Fallback to auth user only if database user still not found
+        console.log("Using auth user only - database user not found");
+        return authUser;
+      }
+    } catch (error) {
+      console.error("Error fetching user from database:", error);
+      // Trả về auth user nếu không lấy được từ database
+      return authUser;
+    }
+  };
 
   // Check if current URL is email confirmation and handle logout + redirect
   useEffect(() => {
@@ -196,8 +260,18 @@ export default function AuthProvider({ children }) {
     const initializeAuth = async () => {
       const { session } = await AuthService.getSession();
       setSession(session);
-      setUserId(session?.user?.id || null);
-      setUser(session?.user || null);
+
+      if (session?.user) {
+        // Lấy thông tin user đầy đủ từ database
+        const fullUser = await fetchUserFromDatabase(session.user);
+
+        setUserId(fullUser?.userid || session.user.id);
+        setUser(fullUser);
+      } else {
+        setUserId(null);
+        setUser(null);
+      }
+
       setIsLoading(false);
     };
 
@@ -206,7 +280,7 @@ export default function AuthProvider({ children }) {
     // Listen for auth state changes
     const {
       data: { subscription },
-    } = AuthService.onAuthStateChange((event, session) => {
+    } = AuthService.onAuthStateChange(async (event, session) => {
       console.log("🔥 Auth state changed:", {
         event,
         userEmail: session?.user?.email,
@@ -221,8 +295,14 @@ export default function AuthProvider({ children }) {
           "Password recovery event detected - navigating to reset-password page"
         );
         setIsPasswordRecovery(true);
-        setUserId(session?.user?.id || null);
-        setUser(session?.user || null);
+        if (session?.user) {
+          const fullUser = await fetchUserFromDatabase(session.user);
+          setUserId(fullUser?.userid || session.user.id);
+          setUser(fullUser);
+        } else {
+          setUserId(null);
+          setUser(null);
+        }
 
         // Navigate to reset-password page with URL params
         navigate("/reset-password" + window.location.hash, { replace: true });
@@ -249,8 +329,14 @@ export default function AuthProvider({ children }) {
           setIsPasswordRecovery(false);
         }
 
-        setUserId(session?.user?.id || null);
-        setUser(session?.user || null);
+        if (session?.user) {
+          const fullUser = await fetchUserFromDatabase(session.user);
+          setUserId(fullUser?.userid || session.user.id);
+          setUser(fullUser);
+        } else {
+          setUserId(null);
+          setUser(null);
+        }
 
         // Check if this is email confirmation vs normal login/OAuth vs password recovery
         const isConfirmationFlow =
@@ -295,8 +381,14 @@ export default function AuthProvider({ children }) {
           "User signed up, staying on current page for email verification"
         );
         setIsSignupFlow(true);
-        setUserId(session?.user?.id || null);
-        setUser(session?.user || null);
+        if (session?.user) {
+          const fullUser = await fetchUserFromDatabase(session.user);
+          setUserId(fullUser?.userid || session.user.id);
+          setUser(fullUser);
+        } else {
+          setUserId(null);
+          setUser(null);
+        }
       } else if (event === "SIGNED_OUT") {
         // User đã đăng xuất
         setIsPasswordRecovery(false);
@@ -310,8 +402,14 @@ export default function AuthProvider({ children }) {
           session?.user?.email || "no user"
         );
         if (!isSignupFlow) {
-          setUserId(session?.user?.id || null);
-          setUser(session?.user || null);
+          if (session?.user) {
+            const fullUser = await fetchUserFromDatabase(session.user);
+            setUserId(fullUser?.userid || session.user.id);
+            setUser(fullUser);
+          } else {
+            setUserId(null);
+            setUser(null);
+          }
         }
       } else {
         // Các event khác
@@ -321,8 +419,14 @@ export default function AuthProvider({ children }) {
           "path:",
           window.location.pathname
         );
-        setUserId(session?.user?.id || null);
-        setUser(session?.user || null);
+        if (session?.user) {
+          const fullUser = await fetchUserFromDatabase(session.user);
+          setUserId(fullUser?.userid || session.user.id);
+          setUser(fullUser);
+        } else {
+          setUserId(null);
+          setUser(null);
+        }
 
         // Auto-redirect logic will handle navigation based on justLoggedIn flag
         console.log(

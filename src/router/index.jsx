@@ -9,11 +9,12 @@ import ResetPassword from "../features/auth/pages/resetPassword";
 import ConfirmedEmail from "../features/auth/pages/confirmedEmail";
 import Intro from "../features/intro/intro";
 import Dashboard from "../features/dashboard/pages/dashboard";
-import Rooms from "../features/rooms/pages/rooms";
-import Tenants from "../features/tenants/pages/tenants";
+import TenantsPage from "../features/tenants/pages/tenants";
 import Contracts from "../features/contracts/pages/contracts";
 import Finance from "../features/finance/pages/finance";
 import Services from "../features/services/pages/services";
+import Property from "../features/property/pages/property";
+import Rooms from "../features/rooms/pages/rooms";
 
 const router = createBrowserRouter([
   {
@@ -54,12 +55,16 @@ const router = createBrowserRouter([
             element: <Dashboard />,
           },
           {
-            path: "/rooms",
+            path: "/property",
+            element: <Property />,
+          },
+          {
+            path: "/rooms/:propertyId",
             element: <Rooms />,
           },
           {
             path: "/tenants",
-            element: <Tenants />,
+            element: <TenantsPage />,
           },
           {
             path: "/contracts",
