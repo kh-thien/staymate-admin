@@ -1,59 +1,25 @@
-import React from "react";
+import React, { useState } from "react";
+import Pagination from "./Pagination";
+import ActionButtons from "./ActionButtons";
+import StatusBadge from "./StatusBadge";
 
 const TenantsTable = ({ tenants, onEdit, onView, onDelete }) => {
-  const getStatusBadge = (isActive) => {
-    return isActive ? (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-        Đang ở
-      </span>
-    ) : (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-        Đã chuyển
-      </span>
-    );
-  };
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
-  const getGenderBadge = (gender) => {
-    switch (gender) {
-      case "Nam":
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-            Nam
-          </span>
-        );
-      case "Nữ":
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
-            Nữ
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-            {gender || "N/A"}
-          </span>
-        );
-    }
-  };
+  // Tính toán phân trang
+  const totalPages = Math.ceil(tenants.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentTenants = tenants.slice(startIndex, endIndex);
 
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString("vi-VN");
   };
 
-  const calculateAge = (birthdate) => {
-    if (!birthdate) return null;
-    const today = new Date();
-    const birth = new Date(birthdate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (
-      monthDiff < 0 ||
-      (monthDiff === 0 && today.getDate() < birth.getDate())
-    ) {
-      age--;
-    }
-    return age;
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
   };
 
   return (
@@ -63,34 +29,37 @@ const TenantsTable = ({ tenants, onEdit, onView, onDelete }) => {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Người thuê
+                Họ tên
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Liên hệ
+                Phòng đang ở
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Thông tin
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Phòng
+                Địa chỉ phòng
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Trạng thái
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Liên hệ
+              </th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Thao tác
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {tenants.map((tenant) => (
-              <tr key={tenant.id} className="hover:bg-gray-50">
-                {/* Người thuê */}
+            {currentTenants.map((tenant) => (
+              <tr
+                key={tenant.id}
+                className="hover:bg-gray-50 transition-colors"
+              >
+                {/* Họ tên */}
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="flex-shrink-0 h-10 w-10">
-                      <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                        <span className="text-sm font-medium text-gray-700">
+                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                        <span className="text-sm font-medium text-white">
                           {tenant.fullname.charAt(0).toUpperCase()}
                         </span>
                       </div>
@@ -106,51 +75,43 @@ const TenantsTable = ({ tenants, onEdit, onView, onDelete }) => {
                   </div>
                 </td>
 
-                {/* Liên hệ */}
+                {/* Phòng đang ở */}
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{tenant.phone}</div>
-                  {tenant.email && (
-                    <div className="text-sm text-gray-500">{tenant.email}</div>
-                  )}
-                </td>
-
-                {/* Thông tin */}
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center space-x-2">
-                    {getGenderBadge(tenant.gender)}
-                    {tenant.birthdate && (
-                      <span className="text-sm text-gray-500">
-                        {calculateAge(tenant.birthdate)}t
-                      </span>
-                    )}
-                  </div>
-                  {tenant.hometown && (
-                    <div className="text-sm text-gray-500 mt-1">
-                      {tenant.hometown}
-                    </div>
-                  )}
-                </td>
-
-                {/* Phòng */}
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {tenant.room ? (
+                  {tenant.is_active && tenant.rooms ? (
                     <div>
                       <div className="text-sm font-medium text-gray-900">
-                        {tenant.room.code}
+                        {tenant.rooms.code}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {tenant.room.name || "N/A"}
+                        {tenant.rooms.name || "N/A"}
                       </div>
                     </div>
                   ) : (
-                    <span className="text-sm text-gray-500">N/A</span>
+                    <div>
+                      <span className="text-sm text-gray-500">
+                        {tenant.is_active ? "N/A" : "Đã chuyển"}
+                      </span>
+                    </div>
+                  )}
+                </td>
+
+                {/* Địa chỉ phòng */}
+                <td className="px-6 py-4">
+                  {tenant.is_active && tenant.rooms?.properties ? (
+                    <div className="text-sm text-gray-900 max-w-xs truncate">
+                      {tenant.rooms.properties.address}
+                    </div>
+                  ) : (
+                    <span className="text-sm text-gray-500">
+                      {tenant.is_active ? "N/A" : "Đã chuyển"}
+                    </span>
                   )}
                 </td>
 
                 {/* Trạng thái */}
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="space-y-1">
-                    {getStatusBadge(tenant.is_active)}
+                    <StatusBadge isActive={tenant.is_active} />
                     <div className="text-xs text-gray-500">
                       Vào: {formatDate(tenant.move_in_date)}
                     </div>
@@ -162,34 +123,44 @@ const TenantsTable = ({ tenants, onEdit, onView, onDelete }) => {
                   </div>
                 </td>
 
+                {/* Liên hệ */}
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm text-gray-900">{tenant.phone}</div>
+                  {tenant.email && (
+                    <div className="text-sm text-gray-500 truncate max-w-xs">
+                      {tenant.email}
+                    </div>
+                  )}
+                </td>
+
                 {/* Thao tác */}
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => onView(tenant)}
-                      className="text-blue-600 hover:text-blue-900"
-                    >
-                      Xem
-                    </button>
-                    <button
-                      onClick={() => onEdit(tenant)}
-                      className="text-gray-600 hover:text-gray-900"
-                    >
-                      Sửa
-                    </button>
-                    <button
-                      onClick={() => onDelete(tenant)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      Xóa
-                    </button>
-                  </div>
+                  <ActionButtons
+                    onView={() => onView(tenant)}
+                    onEdit={() => onEdit(tenant)}
+                    onDelete={() => onDelete(tenant)}
+                    canDelete={!tenant.is_active}
+                    deleteReason={
+                      tenant.is_active ? "Không thể xóa người thuê đang ở" : ""
+                    }
+                  />
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+        totalItems={tenants.length}
+        itemsPerPage={itemsPerPage}
+        startIndex={startIndex}
+        endIndex={endIndex}
+      />
     </div>
   );
 };

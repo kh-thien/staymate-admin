@@ -60,18 +60,16 @@ export const useTenants = (filters = {}) => {
 
   const deleteTenant = async (tenantId) => {
     try {
+      // Kiểm tra điều kiện xóa trước
+      const canDelete = await tenantService.canDeleteTenant(tenantId);
+
+      if (!canDelete.canDelete) {
+        throw new Error(canDelete.reason);
+      }
+
       await tenantService.deleteTenant(tenantId);
-      setTenants((prev) =>
-        prev.map((tenant) =>
-          tenant.id === tenantId
-            ? {
-                ...tenant,
-                is_active: false,
-                move_out_date: new Date().toISOString().split("T")[0],
-              }
-            : tenant
-        )
-      );
+      // Refresh data instead of just updating state
+      await fetchTenants();
     } catch (err) {
       setError(err.message);
       throw err;
