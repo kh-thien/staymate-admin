@@ -32,9 +32,10 @@ export const tenantService = {
         `);
 
       // Apply filters
-      if (filters.search) {
+      if (filters.search && filters.search.trim()) {
+        const searchTerm = filters.search.trim();
         query = query.or(
-          `fullname.ilike.%${filters.search}%,phone.ilike.%${filters.search}%,email.ilike.%${filters.search}%`
+          `fullname.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`
         );
       }
 
@@ -151,9 +152,89 @@ export const tenantService = {
     }
   },
 
+  // Kiểm tra có thể xóa tenant không
+  async canDeleteTenant(tenantId) {
+    try {
+      // Lấy thông tin tenant và hợp đồng
+      const { data: tenant, error: tenantError } = await supabase
+        .from("tenants")
+        .select(
+          `
+          id,
+          is_active,
+          move_out_date,
+          contracts!inner(
+            id,
+            status,
+            end_date
+          )
+        `
+        )
+        .eq("id", tenantId)
+        .single();
+
+      if (tenantError) throw tenantError;
+
+      // Kiểm tra điều kiện xóa
+      const canDelete = {
+        canDelete: false,
+        reason: "",
+        details: {
+          isActive: tenant.is_active,
+          hasActiveContracts: false,
+          activeContractsCount: 0,
+          moveOutDate: tenant.move_out_date,
+        },
+      };
+
+      // 1. Phải đã chuyển đi (is_active = false)
+      if (tenant.is_active) {
+        canDelete.reason =
+          "Không thể xóa người thuê đang ở. Vui lòng chuyển họ ra trước.";
+        return canDelete;
+      }
+
+      // 2. Kiểm tra hợp đồng đang hoạt động
+      const activeContracts = tenant.contracts.filter(
+        (contract) =>
+          contract.status === "ACTIVE" &&
+          new Date(contract.end_date) >= new Date()
+      );
+
+      canDelete.details.hasActiveContracts = activeContracts.length > 0;
+      canDelete.details.activeContractsCount = activeContracts.length;
+
+      if (activeContracts.length > 0) {
+        canDelete.reason = `Không thể xóa vì còn ${activeContracts.length} hợp đồng đang hoạt động. Vui lòng kết thúc hợp đồng trước.`;
+        return canDelete;
+      }
+
+      // 3. Phải có ngày chuyển ra
+      if (!tenant.move_out_date) {
+        canDelete.reason = "Không thể xóa vì chưa có ngày chuyển ra.";
+        return canDelete;
+      }
+
+      // Tất cả điều kiện đều thỏa mãn
+      canDelete.canDelete = true;
+      canDelete.reason = "Có thể xóa người thuê này.";
+      return canDelete;
+    } catch (error) {
+      console.error("Error checking if tenant can be deleted:", error);
+      throw error;
+    }
+  },
+
   // Xóa tenant (soft delete)
   async deleteTenant(tenantId) {
     try {
+      // Kiểm tra điều kiện xóa trước
+      const canDelete = await this.canDeleteTenant(tenantId);
+
+      if (!canDelete.canDelete) {
+        throw new Error(canDelete.reason);
+      }
+
       const { data, error } = await supabase
         .from("tenants")
         .update({
@@ -194,6 +275,10 @@ export const tenantService = {
   // Tìm kiếm tenants
   async searchTenants(searchTerm) {
     try {
+      if (!searchTerm || !searchTerm.trim()) {
+        return [];
+      }
+
       const { data, error } = await supabase
         .from("tenants")
         .select(
@@ -203,7 +288,7 @@ export const tenantService = {
         `
         )
         .or(
-          `fullname.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`
+          `fullname.ilike.%${searchTerm.trim()}%,phone.ilike.%${searchTerm.trim()}%,email.ilike.%${searchTerm.trim()}%`
         )
         .order("created_at", { ascending: false });
 

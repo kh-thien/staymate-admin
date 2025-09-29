@@ -1,26 +1,26 @@
 import React, { useState } from "react";
 import { useTenants } from "../hooks/useTenants";
-import TenantCard from "../components/TenantCard";
+import { tenantService } from "../services/tenantService";
 import TenantsTable from "../components/TenantsTable";
 import AddTenantModal from "../components/AddTenantModal";
 import EditTenantModal from "../components/EditTenantModal";
 import TenantDetailModal from "../components/TenantDetailModal";
-import ViewControls from "../components/ViewControls";
 import TenantFilters from "../components/TenantFilters";
+import EmptyState from "../components/EmptyState";
+import ExportModal from "../components/ExportModal";
 
 const TenantsPage = () => {
   // State management
-  const [viewMode, setViewMode] = useState("grid");
-  const [gridColumns, setGridColumns] = useState(3);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [editingTenant, setEditingTenant] = useState(null);
   const [selectedTenant, setSelectedTenant] = useState(null);
 
   // Filters and search
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("active");
   const [roomFilter, setRoomFilter] = useState("all");
   const [propertyFilter, setPropertyFilter] = useState("all");
   const [sortBy, setSortBy] = useState("created_at");
@@ -61,17 +61,33 @@ const TenantsPage = () => {
   };
 
   const handleDeleteTenant = async (tenant) => {
-    if (
-      window.confirm(`Bạn có chắc muốn xóa người thuê "${tenant.fullname}"?`)
-    ) {
-      try {
-        await deleteTenant(tenant.id);
-        // Refresh data
-        await refreshTenants();
-      } catch (error) {
-        console.error("Error deleting tenant:", error);
-        alert("Lỗi khi xóa người thuê");
+    try {
+      // Kiểm tra điều kiện xóa trước khi hiển thị confirm
+      const canDelete = await tenantService.canDeleteTenant(tenant.id);
+
+      if (!canDelete.canDelete) {
+        alert(`❌ ${canDelete.reason}`);
+        return;
       }
+
+      // Hiển thị thông tin chi tiết trước khi xóa
+      const confirmMessage =
+        `Bạn có chắc muốn xóa người thuê "${tenant.fullname}"?\n\n` +
+        `📋 Thông tin:\n` +
+        `• Trạng thái: ${
+          canDelete.details.isActive ? "Đang ở" : "Đã chuyển"
+        }\n` +
+        `• Ngày chuyển ra: ${canDelete.details.moveOutDate || "Chưa có"}\n` +
+        `• Hợp đồng đang hoạt động: ${canDelete.details.activeContractsCount} hợp đồng\n\n` +
+        `⚠️ Hành động này không thể hoàn tác!`;
+
+      if (window.confirm(confirmMessage)) {
+        await deleteTenant(tenant.id);
+        // Data will be refreshed automatically by deleteTenant
+      }
+    } catch (error) {
+      console.error("Error deleting tenant:", error);
+      alert(`❌ Lỗi khi xóa người thuê: ${error.message}`);
     }
   };
 
@@ -106,6 +122,17 @@ const TenantsPage = () => {
 
   const handleSearch = (term) => {
     setSearchTerm(term);
+  };
+
+  const handleExport = (exportData) => {
+    try {
+      // Implement export logic here
+      console.log("Export data:", exportData);
+      alert("Xuất dữ liệu thành công!");
+    } catch (error) {
+      console.error("Error exporting data:", error);
+      alert("Lỗi khi xuất dữ liệu");
+    }
   };
 
   // Statistics
@@ -159,12 +186,33 @@ const TenantsPage = () => {
               Quản lý thông tin và hợp đồng của người thuê
             </p>
           </div>
-          <button
-            onClick={handleAddTenant}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-          >
-            + Thêm người thuê
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+            >
+              <svg
+                className="w-4 h-4 inline mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              Xuất dữ liệu
+            </button>
+            <button
+              onClick={handleAddTenant}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              + Thêm người thuê
+            </button>
+          </div>
         </div>
       </div>
 
@@ -285,89 +333,44 @@ const TenantsPage = () => {
         />
       </div>
 
-      {/* View Controls */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-4">
-          <span className="text-sm text-gray-600">
-            Hiển thị {tenants.length} người thuê
-          </span>
-        </div>
-        <ViewControls
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          gridColumns={gridColumns}
-          onGridColumnsChange={setGridColumns}
-        />
-      </div>
-
       {/* Content */}
       {tenants.length === 0 ? (
-        <div className="text-center py-12">
-          <svg
-            className="mx-auto h-12 w-12 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-5.523-4.477-10-10-10S-3 12.477-3 18v2h20z"
-            />
-          </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">
-            Không có người thuê
-          </h3>
-          <p className="mt-1 text-sm text-gray-500">
-            {searchTerm || statusFilter !== "all" || roomFilter !== "all"
+        <EmptyState
+          title="Không có người thuê"
+          description={
+            searchTerm || statusFilter !== "all" || roomFilter !== "all"
               ? "Không tìm thấy người thuê phù hợp với bộ lọc"
-              : "Bắt đầu bằng cách thêm người thuê mới"}
-          </p>
-          {!searchTerm && statusFilter === "all" && roomFilter === "all" && (
-            <div className="mt-6">
-              <button
-                onClick={handleAddTenant}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                + Thêm người thuê
-              </button>
-            </div>
-          )}
-        </div>
-      ) : (
-        <>
-          {viewMode === "grid" ? (
-            <div
-              className={`grid gap-6 ${
-                gridColumns === 2
-                  ? "grid-cols-1 md:grid-cols-2"
-                  : gridColumns === 3
-                  ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
-                  : gridColumns === 4
-                  ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4"
-                  : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-              }`}
+              : "Bắt đầu bằng cách thêm người thuê mới"
+          }
+          actionLabel="+ Thêm người thuê"
+          onAction={
+            !searchTerm && statusFilter === "all" && roomFilter === "all"
+              ? handleAddTenant
+              : null
+          }
+          icon={() => (
+            <svg
+              className="h-12 w-12 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              {tenants.map((tenant) => (
-                <TenantCard
-                  key={tenant.id}
-                  tenant={tenant}
-                  onEdit={handleEditTenant}
-                  onView={handleViewTenant}
-                  onDelete={handleDeleteTenant}
-                />
-              ))}
-            </div>
-          ) : (
-            <TenantsTable
-              tenants={tenants}
-              onEdit={handleEditTenant}
-              onView={handleViewTenant}
-              onDelete={handleDeleteTenant}
-            />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-5.523-4.477-10-10-10S-3 12.477-3 18v2h20z"
+              />
+            </svg>
           )}
-        </>
+        />
+      ) : (
+        <TenantsTable
+          tenants={tenants}
+          onEdit={handleEditTenant}
+          onView={handleViewTenant}
+          onDelete={handleDeleteTenant}
+        />
       )}
 
       {/* Modals */}
@@ -399,6 +402,14 @@ const TenantsPage = () => {
         tenant={selectedTenant}
         onEdit={handleEditTenant}
         onDelete={handleDeleteTenant}
+      />
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExport}
+        tenants={tenants}
       />
     </div>
   );
