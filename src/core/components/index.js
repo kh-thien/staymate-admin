@@ -6,3 +6,6 @@ export { default as Button } from "./btton";
 export { default as GoogleIcon } from "./googleIcon";
 export { default as Divider } from "./divider";
 export { default as PasswordStrengthIndicator } from "./passwordStrengthIndicator";
+
+// UI Components
+export * from "./ui";
