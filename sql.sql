@@ -66,6 +66,10 @@ CREATE TABLE public.contracts (
   terms text,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  contract_file_path text,
+  contract_file_name text,
+  contract_file_size numeric,
+  contract_file_type text,
   CONSTRAINT contracts_pkey PRIMARY KEY (id),
   CONSTRAINT contracts_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id),
   CONSTRAINT contracts_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id)
@@ -91,7 +95,7 @@ CREATE TABLE public.maintenance_requests (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT maintenance_requests_pkey PRIMARY KEY (id),
   CONSTRAINT maintenance_requests_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id),
-  CONSTRAINT maintenance_requests_reported_by_fkey FOREIGN KEY (reported_by) REFERENCES public.users(userId)
+  CONSTRAINT maintenance_requests_reported_by_fkey FOREIGN KEY (reported_by) REFERENCES public.users(userid)
 );
 CREATE TABLE public.meters (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -158,10 +162,10 @@ CREATE TABLE public.rooms (
   current_occupants integer DEFAULT 0,
   monthly_rent numeric NOT NULL DEFAULT 0,
   deposit_amount numeric DEFAULT 0,
-  deposit_months integer DEFAULT 1,
   area_sqm numeric,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  deposit_months integer DEFAULT 1 CHECK (deposit_months >= 1 AND deposit_months <= 3),
   CONSTRAINT rooms_pkey PRIMARY KEY (id),
   CONSTRAINT rooms_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.properties(id),
   CONSTRAINT rooms_floor_id_fkey FOREIGN KEY (floor_id) REFERENCES public.floors(id)
@@ -183,11 +187,11 @@ CREATE TABLE public.tenants (
   fullname text NOT NULL,
   birthdate date,
   gender text,
-  phone text,
+  phone text UNIQUE,
   email text,
   hometown text,
   occupation text,
-  id_number text,
+  id_number text UNIQUE,
   note text,
   move_in_date date,
   move_out_date date,
@@ -198,7 +202,7 @@ CREATE TABLE public.tenants (
   CONSTRAINT tenants_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id)
 );
 CREATE TABLE public.users (
-  userId uuid NOT NULL,
+  userid uuid NOT NULL,
   full_name text,
   email text UNIQUE,
   phone text UNIQUE,
@@ -206,36 +210,6 @@ CREATE TABLE public.users (
   avatar_url text,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT users_pkey PRIMARY KEY (userId),
-  CONSTRAINT users_userId_fkey FOREIGN KEY (userId) REFERENCES auth.users(id)
+  CONSTRAINT users_pkey PRIMARY KEY (userid),
+  CONSTRAINT users_userid_fkey FOREIGN KEY (userid) REFERENCES auth.users(id)
 );
-
--- Function to handle new user creation (updated to handle both OAuth and email/password signup)
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER SET search_path = public
-AS $$
-BEGIN
-  INSERT INTO public.users (userId, full_name, avatar_url, email, role)
-  VALUES (
-    NEW.id,                                  -- id từ auth.users
-    COALESCE(
-      NEW.raw_user_meta_data->>'full_name',  -- tên từ OAuth metadata
-      NEW.email                              -- fallback: dùng email làm tên
-    ),
-    NEW.raw_user_meta_data->>'avatar_url',   -- avatar từ OAuth metadata (có thể NULL)
-    NEW.email,                               -- email từ auth.users
-    'ADMIN'::user_role                       -- role mặc định
-  );
-  RETURN NEW;
-END;
-$$;
-
--- Trigger to automatically create user in public.users when auth.users is created
-CREATE OR REPLACE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW
-  EXECUTE PROCEDURE public.handle_new_user();
-
-
