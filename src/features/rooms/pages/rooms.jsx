@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useRooms } from "../hooks/useRooms";
 import { useProperty } from "../hooks/useProperty";
+import { roomService } from "../services/roomService";
 import RoomCard from "../components/RoomCard";
 import RoomsTable from "../components/RoomsTable";
 import AddRoomModal from "../components/AddRoomModal";
@@ -52,9 +53,18 @@ const RoomsPage = () => {
     setShowAddModal(true);
   };
 
-  const handleViewRoom = (room) => {
-    setSelectedRoom(room);
-    setShowDetailModal(true);
+  const handleViewRoom = async (room) => {
+    try {
+      // Fetch room with tenant information
+      const roomWithTenants = await roomService.getRoomById(room.id);
+      setSelectedRoom(roomWithTenants);
+      setShowDetailModal(true);
+    } catch (error) {
+      console.error("Error fetching room details:", error);
+      // Fallback to original room data
+      setSelectedRoom(room);
+      setShowDetailModal(true);
+    }
   };
 
   const handleUpdateRoom = async (roomData) => {
@@ -315,7 +325,9 @@ const RoomsPage = () => {
                   </div>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Hiện tại</p>
+                  <p className="text-sm font-medium text-gray-500">
+                    Số người hiện tại
+                  </p>
                   <p className="text-2xl font-bold text-gray-900">
                     {stats.currentOccupants || 0} người
                   </p>

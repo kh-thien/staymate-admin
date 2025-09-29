@@ -12,6 +12,10 @@ export const useRooms = (propertyId) => {
     try {
       setLoading(true);
       setError(null);
+
+      // Cleanup orphaned rooms first
+      await roomService.cleanupOrphanedRooms(propertyId);
+
       const data = await roomService.getRoomsByProperty(propertyId);
       setRooms(data);
     } catch (err) {

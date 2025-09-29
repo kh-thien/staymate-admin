@@ -1,52 +1,95 @@
-import { tenantService } from "./tenantService";
-import { contractService } from "./contractService";
 import { supabase } from "../../../core/data/remote/supabase";
+import { contractFileService } from "./contractFileService";
 
 export const rentalService = {
-  // Tạo rental (tenant + contract) cùng lúc
+  // Create rental with contract and tenant
   async createRental(rentalData) {
     try {
       const { tenant, contract, room_id } = rentalData;
 
-      // Bắt đầu transaction
-      const { data: tenantData, error: tenantError } = await supabase
-        .from("tenants")
-        .insert([
-          {
-            ...tenant,
+      // Step 1: Create or update tenant
+      let tenantId;
+      if (tenant.id) {
+        // Update existing tenant
+        const { data: updatedTenant, error: tenantError } = await supabase
+          .from("tenants")
+          .update({
             room_id: room_id,
-            move_out_date: contract.end_date, // Set move_out_date = end_date của contract
-            is_active: true, // Tenant mới luôn active
-          },
-        ])
-        .select()
-        .single();
+            move_in_date: tenant.move_in_date,
+            move_out_date: contract.end_date, // Đồng bộ với ngày kết thúc hợp đồng
+            is_active: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", tenant.id)
+          .select()
+          .single();
 
-      if (tenantError) throw tenantError;
+        if (tenantError) throw tenantError;
+        tenantId = updatedTenant.id;
+      } else {
+        // Create new tenant
+        const { data: newTenant, error: tenantError } = await supabase
+          .from("tenants")
+          .insert([
+            {
+              ...tenant,
+              room_id: room_id,
+              move_out_date: null, // Không set move_out_date khi tạo mới (chỉ set khi thực sự chuyển ra)
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+          ])
+          .select()
+          .single();
 
-      // Tạo số hợp đồng nếu chưa có
-      let contractNumber = contract.contract_number;
-      if (!contractNumber) {
-        contractNumber = await contractService.generateContractNumber();
+        if (tenantError) throw tenantError;
+        tenantId = newTenant.id;
       }
 
-      // Tạo contract
-      const { data: contractData, error: contractError } = await supabase
+      // Step 2: Upload contract file if exists
+      let contractFileData = null;
+      if (contract.contract_file) {
+        const uploadResult = await contractFileService.uploadContractFile(
+          contract.contract_file.file,
+          tenantId // Use tenantId as contract identifier
+        );
+
+        if (!uploadResult.success) {
+          throw new Error(`Upload contract file failed: ${uploadResult.error}`);
+        }
+
+        contractFileData = uploadResult.data;
+      }
+
+      // Step 3: Create contract
+      const contractData = {
+        room_id: room_id,
+        tenant_id: tenantId,
+        contract_number: contract.contract_number || `HD-${Date.now()}`,
+        status: contract.status || "ACTIVE",
+        start_date: contract.start_date,
+        end_date: contract.end_date,
+        monthly_rent: contract.monthly_rent,
+        deposit: contract.deposit || 0,
+        payment_cycle: contract.payment_cycle || "MONTHLY",
+        // File information
+        contract_file_path: contractFileData?.path || null,
+        contract_file_name: contractFileData?.fileName || null,
+        contract_file_size: contractFileData?.size || null,
+        contract_file_type: contractFileData?.type || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data: newContract, error: contractError } = await supabase
         .from("contracts")
-        .insert([
-          {
-            ...contract,
-            room_id: room_id,
-            tenant_id: tenantData.id,
-            contract_number: contractNumber,
-          },
-        ])
+        .insert([contractData])
         .select()
         .single();
 
       if (contractError) throw contractError;
 
-      // Cập nhật trạng thái phòng thành OCCUPIED
+      // Step 4: Update room status
       const { error: roomError } = await supabase
         .from("rooms")
         .update({
@@ -59,128 +102,36 @@ export const rentalService = {
       if (roomError) throw roomError;
 
       return {
-        tenant: tenantData,
-        contract: contractData,
+        success: true,
+        data: {
+          tenant: tenantId,
+          contract: newContract,
+          room: room_id,
+        },
       };
     } catch (error) {
-      console.error("Error creating rental:", error);
-      throw error;
-    }
-  },
-
-  // Lấy thông tin rental đầy đủ theo room_id
-  async getRentalInfo(roomId) {
-    try {
-      const [tenants, contracts] = await Promise.all([
-        tenantService.getTenantsByRoom(roomId),
-        contractService.getContractsByRoom(roomId),
-      ]);
-
+      console.error("Create rental error:", error);
       return {
-        tenants,
-        contracts,
+        success: false,
+        error: error.message,
       };
-    } catch (error) {
-      console.error("Error fetching rental info:", error);
-      throw error;
     }
   },
 
-  // Kết thúc hợp đồng (move out)
-  async endRental(roomId, tenantId, contractId) {
-    try {
-      // Cập nhật tenant thành inactive
-      await tenantService.deleteTenant(tenantId);
-
-      // Cập nhật contract status
-      await contractService.updateContract(contractId, {
-        status: "ENDED",
-        updated_at: new Date().toISOString(),
-      });
-
-      // Cập nhật trạng thái phòng thành VACANT
-      const { error: roomError } = await supabase
-        .from("rooms")
-        .update({
-          status: "VACANT",
-          current_occupants: 0,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", roomId);
-
-      if (roomError) throw roomError;
-
-      return { success: true };
-    } catch (error) {
-      console.error("Error ending rental:", error);
-      throw error;
-    }
+  // Get contract file URL
+  getContractFileUrl(contractId) {
+    return contractFileService.getContractFileUrl(
+      `contracts-staymate/contract_${contractId}_*`
+    );
   },
 
-  // Gia hạn hợp đồng
-  async extendContract(contractId, newEndDate) {
-    try {
-      const { data, error } = await supabase
-        .from("contracts")
-        .update({
-          end_date: newEndDate,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", contractId)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error("Error extending contract:", error);
-      throw error;
-    }
+  // Download contract file
+  async downloadContractFile(filePath) {
+    return await contractFileService.downloadContractFile(filePath);
   },
 
-  // Lấy thống kê rental
-  async getRentalStats() {
-    try {
-      const [
-        { data: totalRooms },
-        { data: occupiedRooms },
-        { data: vacantRooms },
-        { data: totalTenants },
-        { data: activeContracts },
-      ] = await Promise.all([
-        supabase.from("rooms").select("id", { count: "exact" }),
-        supabase
-          .from("rooms")
-          .select("id", { count: "exact" })
-          .eq("status", "OCCUPIED"),
-        supabase
-          .from("rooms")
-          .select("id", { count: "exact" })
-          .eq("status", "VACANT"),
-        supabase
-          .from("tenants")
-          .select("id", { count: "exact" })
-          .eq("is_active", true),
-        supabase
-          .from("contracts")
-          .select("id", { count: "exact" })
-          .eq("status", "ACTIVE"),
-      ]);
-
-      return {
-        totalRooms: totalRooms?.length || 0,
-        occupiedRooms: occupiedRooms?.length || 0,
-        vacantRooms: vacantRooms?.length || 0,
-        totalTenants: totalTenants?.length || 0,
-        activeContracts: activeContracts?.length || 0,
-        occupancyRate:
-          totalRooms?.length > 0
-            ? Math.round((occupiedRooms?.length / totalRooms?.length) * 100)
-            : 0,
-      };
-    } catch (error) {
-      console.error("Error fetching rental stats:", error);
-      throw error;
-    }
+  // Delete contract file
+  async deleteContractFile(filePath) {
+    return await contractFileService.deleteContractFile(filePath);
   },
 };

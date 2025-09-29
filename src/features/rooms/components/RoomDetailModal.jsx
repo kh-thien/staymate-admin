@@ -201,28 +201,68 @@ const RoomDetailModal = ({ isOpen, onClose, room, onEdit, onDelete }) => {
               </div>
             </div>
 
-            {/* Timestamps */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                Thời gian
-              </h3>
+            {/* Current Tenant Info */}
+            {room.status === "OCCUPIED" &&
+              room.tenants &&
+              room.tenants.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
+                    Người đang thuê
+                  </h3>
 
-              <div className="space-y-3">
-                <div>
-                  <label className="text-sm font-medium text-gray-600">
-                    Ngày tạo
-                  </label>
-                  <p className="text-gray-900">{formatDate(room.created_at)}</p>
-                </div>
+                  <div className="space-y-3">
+                    {room.tenants
+                      .filter((tenant) => tenant.is_active)
+                      .map((tenant, index) => (
+                        <div
+                          key={tenant.id}
+                          className="bg-blue-50 p-4 rounded-lg border border-blue-200"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                                  {tenant.fullname.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                  <h4 className="font-semibold text-gray-900">
+                                    {tenant.fullname}
+                                  </h4>
+                                  <p className="text-sm text-gray-600">
+                                    {tenant.phone}
+                                  </p>
+                                </div>
+                              </div>
 
-                <div>
-                  <label className="text-sm font-medium text-gray-600">
-                    Cập nhật lần cuối
-                  </label>
-                  <p className="text-gray-900">{formatDate(room.updated_at)}</p>
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <label className="text-gray-600">
+                                    Email:
+                                  </label>
+                                  <p className="text-gray-900">
+                                    {tenant.email || "N/A"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <label className="text-gray-600">
+                                    Ngày chuyển vào:
+                                  </label>
+                                  <p className="text-gray-900">
+                                    {tenant.move_in_date
+                                      ? new Date(
+                                          tenant.move_in_date
+                                        ).toLocaleDateString("vi-VN")
+                                      : "N/A"}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
                 </div>
-              </div>
-            </div>
+              )}
           </div>
 
           {/* Actions */}

@@ -120,19 +120,26 @@ const RoomsTable = ({ rooms, onEdit, onDelete, onStatusChange }) => {
             </button>
             <button
               onClick={() => {
-                const newStatus =
-                  room.status === "OCCUPIED" ? "VACANT" : "OCCUPIED";
-                const newOccupants =
-                  newStatus === "OCCUPIED" ? room.capacity : 0;
-                onStatusChange(room.id, newStatus, newOccupants);
+                if (room.status === "OCCUPIED") {
+                  // Giải phóng phòng
+                  onStatusChange(room.id, "VACANT", 0);
+                } else {
+                  // Không cho phép "Cho thuê" từ đây - phải dùng modal rental
+                  alert(
+                    "Vui lòng sử dụng nút 'Cho thuê' trong RoomCard để tạo hợp đồng và thêm thông tin người thuê."
+                  );
+                }
               }}
               className={`text-sm font-medium ${
                 room.status === "OCCUPIED"
                   ? "text-green-600 hover:text-green-800"
-                  : "text-red-600 hover:text-red-800"
+                  : "text-gray-400 cursor-not-allowed"
               }`}
+              disabled={room.status === "VACANT"}
             >
-              {room.status === "OCCUPIED" ? "Giải phóng" : "Cho thuê"}
+              {room.status === "OCCUPIED"
+                ? "Giải phóng"
+                : "Sử dụng modal cho thuê"}
             </button>
             <button
               onClick={() => onDelete(room.id)}
