@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from "react";
+import TenantSelector from "./TenantSelector";
+import FileUpload from "./FileUpload";
+import { rentalService } from "../services/rentalService";
+import { supabase } from "../../../core/data/remote/supabase";
 
 const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
+  const [tenantOption, setTenantOption] = useState("new"); // "new" or "existing"
+  const [selectedTenant, setSelectedTenant] = useState(null);
+  const [contractFile, setContractFile] = useState(null);
+  const [syncMoveInDate, setSyncMoveInDate] = useState(true); // Checkbox để đồng bộ move_in_date với start_date
+
   const [formData, setFormData] = useState({
     // Thông tin người thuê
     fullname: "",
@@ -21,35 +30,151 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
     monthly_rent: "",
     deposit: "",
     payment_cycle: "MONTHLY",
-    terms: "",
   });
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [validationErrors, setValidationErrors] = useState({});
 
   useEffect(() => {
     if (isOpen && room) {
       // Pre-fill với thông tin phòng
+      const today = new Date().toISOString().split("T")[0];
       setFormData((prev) => ({
         ...prev,
         monthly_rent: room.monthly_rent || "",
         deposit: room.deposit_amount || "",
-        start_date: new Date().toISOString().split("T")[0], // Hôm nay
-        move_in_date: new Date().toISOString().split("T")[0],
+        start_date: today,
+        move_in_date: today, // Đồng bộ với start_date
       }));
     }
   }, [isOpen, room]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => {
+      const newData = {
+        ...prev,
+        [name]: value,
+      };
+
+      // Đồng bộ move_in_date với start_date nếu checkbox được check
+      if (name === "start_date" && syncMoveInDate) {
+        newData.move_in_date = value;
+      }
+
+      return newData;
+    });
 
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+  };
+
+  const handleTenantOptionChange = (option) => {
+    setTenantOption(option);
+    if (option === "existing") {
+      // Clear form data when switching to existing tenant
+      setFormData((prev) => ({
+        ...prev,
+        fullname: "",
+        birthdate: "",
+        gender: "",
+        phone: "",
+        email: "",
+        hometown: "",
+        occupation: "",
+        id_number: "",
+        note: "",
+      }));
+    }
+  };
+
+  const handleSelectTenant = (tenant) => {
+    setSelectedTenant(tenant);
+    // Pre-fill form with tenant data
+    setFormData((prev) => ({
+      ...prev,
+      fullname: tenant.fullname,
+      birthdate: tenant.birthdate || "",
+      gender: tenant.gender || "",
+      phone: tenant.phone,
+      email: tenant.email || "",
+      hometown: tenant.hometown || "",
+      occupation: tenant.occupation || "",
+      id_number: tenant.id_number || "",
+      note: tenant.note || "",
+    }));
+  };
+
+  const handleClearTenant = () => {
+    setSelectedTenant(null);
+    setFormData((prev) => ({
+      ...prev,
+      fullname: "",
+      birthdate: "",
+      gender: "",
+      phone: "",
+      email: "",
+      hometown: "",
+      occupation: "",
+      id_number: "",
+      note: "",
+    }));
+  };
+
+  const handleFileSelect = (file) => {
+    setContractFile(file);
+  };
+
+  const handleFileRemove = () => {
+    setContractFile(null);
+  };
+
+  // Validate duplicate phone and id_number
+  const validateTenantUniqueness = async (phone, idNumber) => {
+    const errors = {};
+
+    // Check phone uniqueness
+    if (phone) {
+      const { data: phoneCheck, error: phoneError } = await supabase
+        .from("tenants")
+        .select("id, phone")
+        .eq("phone", phone)
+        .eq("is_active", true)
+        .single();
+
+      if (phoneCheck && !phoneError) {
+        errors.phone = "Số điện thoại này đã được sử dụng bởi người thuê khác";
+      }
+    }
+
+    // Check id_number uniqueness
+    if (idNumber) {
+      const { data: idCheck, error: idError } = await supabase
+        .from("tenants")
+        .select("id, id_number")
+        .eq("id_number", idNumber)
+        .eq("is_active", true)
+        .single();
+
+      if (idCheck && !idError) {
+        errors.id_number = "CMND/CCCD này đã được sử dụng bởi người thuê khác";
+      }
+    }
+
+    return errors;
+  };
+
+  const handleSyncMoveInDateChange = (checked) => {
+    setSyncMoveInDate(checked);
+    if (checked) {
+      // Nếu check, đồng bộ move_in_date với start_date hiện tại
+      setFormData((prev) => ({
+        ...prev,
+        move_in_date: prev.start_date,
+      }));
     }
   };
 
@@ -90,6 +215,25 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
       newErrors.end_date = "Ngày kết thúc phải sau ngày bắt đầu";
     }
 
+    // Validation cho move_in_date
+    if (
+      formData.move_in_date &&
+      formData.start_date &&
+      formData.move_in_date > formData.start_date
+    ) {
+      newErrors.move_in_date =
+        "Ngày chuyển vào không được sau ngày bắt đầu hợp đồng";
+    }
+
+    if (
+      formData.move_in_date &&
+      formData.end_date &&
+      formData.move_in_date > formData.end_date
+    ) {
+      newErrors.move_in_date =
+        "Ngày chuyển vào không được sau ngày kết thúc hợp đồng";
+    }
+
     if (!formData.monthly_rent || formData.monthly_rent <= 0) {
       newErrors.monthly_rent = "Tiền thuê phải lớn hơn 0";
     }
@@ -107,23 +251,42 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
 
     if (!validateForm()) return;
 
+    // Validate tenant uniqueness for new tenants
+    if (tenantOption === "new") {
+      const uniquenessErrors = await validateTenantUniqueness(
+        formData.phone,
+        formData.id_number
+      );
+      if (Object.keys(uniquenessErrors).length > 0) {
+        setValidationErrors(uniquenessErrors);
+        return;
+      }
+    }
+
     setLoading(true);
+    setValidationErrors({});
     try {
       const rentalData = {
         // Thông tin người thuê
-        tenant: {
-          fullname: formData.fullname,
-          birthdate: formData.birthdate || null,
-          gender: formData.gender || null,
-          phone: formData.phone,
-          email: formData.email || null,
-          hometown: formData.hometown || null,
-          occupation: formData.occupation || null,
-          id_number: formData.id_number || null,
-          note: formData.note || null,
-          move_in_date: formData.move_in_date,
-          is_active: true,
-        },
+        tenant:
+          tenantOption === "existing" && selectedTenant
+            ? {
+                id: selectedTenant.id, // Use existing tenant ID
+                move_in_date: formData.move_in_date,
+              }
+            : {
+                fullname: formData.fullname,
+                birthdate: formData.birthdate || null,
+                gender: formData.gender || null,
+                phone: formData.phone,
+                email: formData.email || null,
+                hometown: formData.hometown || null,
+                occupation: formData.occupation || null,
+                id_number: formData.id_number || null,
+                note: formData.note || null,
+                move_in_date: formData.move_in_date,
+                is_active: true,
+              },
 
         // Thông tin hợp đồng
         contract: {
@@ -133,24 +296,45 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
           monthly_rent: parseFloat(formData.monthly_rent),
           deposit: parseFloat(formData.deposit) || 0,
           payment_cycle: formData.payment_cycle,
-          terms: formData.terms || null,
           status: "ACTIVE",
+          // File information
+          contract_file: contractFile
+            ? {
+                file: contractFile,
+                name: contractFile.name,
+                size: contractFile.size,
+                type: contractFile.type,
+              }
+            : null,
         },
 
         // Thông tin phòng
         room_id: room.id,
       };
 
-      await onSubmit(rentalData);
+      // Use rentalService to create rental with file upload
+      const result = await rentalService.createRental(rentalData);
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      // Call parent onSubmit with result
+      await onSubmit(result.data);
       onClose();
     } catch (error) {
       console.error("Error creating rental:", error);
+      alert(`Lỗi khi tạo hợp đồng: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
   const resetForm = () => {
+    setTenantOption("new");
+    setSelectedTenant(null);
+    setContractFile(null);
+    setSyncMoveInDate(true);
     setFormData({
       fullname: "",
       birthdate: "",
@@ -168,7 +352,6 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
       monthly_rent: "",
       deposit: "",
       payment_cycle: "MONTHLY",
-      terms: "",
     });
     setErrors({});
   };
@@ -220,172 +403,262 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
                 Thông tin người thuê
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Họ tên <span className="text-red-500">*</span>
+              {/* Tenant Option Selection */}
+              <div className="space-y-4">
+                <div className="flex space-x-4">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="tenantOption"
+                      value="new"
+                      checked={tenantOption === "new"}
+                      onChange={(e) => handleTenantOptionChange(e.target.value)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      Thêm người thuê mới
+                    </span>
                   </label>
-                  <input
-                    type="text"
-                    name="fullname"
-                    value={formData.fullname}
-                    onChange={handleChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.fullname ? "border-red-500" : "border-gray-300"
-                    }`}
-                    placeholder="Nhập họ tên"
-                  />
-                  {errors.fullname && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors.fullname}
-                    </p>
-                  )}
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="tenantOption"
+                      value="existing"
+                      checked={tenantOption === "existing"}
+                      onChange={(e) => handleTenantOptionChange(e.target.value)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      Chọn người thuê hiện có
+                    </span>
+                  </label>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Số điện thoại <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.phone ? "border-red-500" : "border-gray-300"
-                    }`}
-                    placeholder="Nhập số điện thoại"
+                {tenantOption === "existing" && (
+                  <TenantSelector
+                    onSelectTenant={handleSelectTenant}
+                    selectedTenant={selectedTenant}
+                    onClear={handleClearTenant}
                   />
-                  {errors.phone && (
-                    <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.email ? "border-red-500" : "border-gray-300"
-                    }`}
-                    placeholder="Nhập email"
-                  />
-                  {errors.email && (
-                    <p className="text-red-500 text-sm mt-1">{errors.email}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Giới tính
-                  </label>
-                  <select
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">Chọn giới tính</option>
-                    <option value="Nam">Nam</option>
-                    <option value="Nữ">Nữ</option>
-                    <option value="Khác">Khác</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ngày sinh
-                  </label>
-                  <input
-                    type="date"
-                    name="birthdate"
-                    value={formData.birthdate}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nghề nghiệp
-                  </label>
-                  <input
-                    type="text"
-                    name="occupation"
-                    value={formData.occupation}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Sinh viên, Nhân viên, Tự do..."
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Quê quán
-                  </label>
-                  <input
-                    type="text"
-                    name="hometown"
-                    value={formData.hometown}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Nhập quê quán"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    CMND/CCCD
-                  </label>
-                  <input
-                    type="text"
-                    name="id_number"
-                    value={formData.id_number}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Nhập số CMND/CCCD"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ngày chuyển vào <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="move_in_date"
-                    value={formData.move_in_date}
-                    onChange={handleChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.move_in_date ? "border-red-500" : "border-gray-300"
-                    }`}
-                  />
-                  {errors.move_in_date && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors.move_in_date}
-                    </p>
-                  )}
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ghi chú
-                  </label>
-                  <textarea
-                    name="note"
-                    value={formData.note}
-                    onChange={handleChange}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Ghi chú thêm về người thuê..."
-                  />
-                </div>
+                )}
               </div>
+
+              {tenantOption === "new" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Họ tên <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="fullname"
+                      value={formData.fullname}
+                      onChange={handleChange}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        errors.fullname ? "border-red-500" : "border-gray-300"
+                      }`}
+                      placeholder="Nhập họ tên"
+                    />
+                    {errors.fullname && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.fullname}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Số điện thoại <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        errors.phone || validationErrors.phone
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
+                      placeholder="Nhập số điện thoại"
+                    />
+                    {errors.phone && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.phone}
+                      </p>
+                    )}
+                    {validationErrors.phone && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {validationErrors.phone}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        errors.email ? "border-red-500" : "border-gray-300"
+                      }`}
+                      placeholder="Nhập email"
+                    />
+                    {errors.email && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.email}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Giới tính
+                    </label>
+                    <select
+                      name="gender"
+                      value={formData.gender}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Chọn giới tính</option>
+                      <option value="Nam">Nam</option>
+                      <option value="Nữ">Nữ</option>
+                      <option value="Khác">Khác</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Ngày sinh
+                    </label>
+                    <input
+                      type="date"
+                      name="birthdate"
+                      value={formData.birthdate}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nghề nghiệp
+                    </label>
+                    <input
+                      type="text"
+                      name="occupation"
+                      value={formData.occupation}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Sinh viên, Nhân viên, Tự do..."
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Quê quán
+                    </label>
+                    <input
+                      type="text"
+                      name="hometown"
+                      value={formData.hometown}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Nhập quê quán"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      CMND/CCCD
+                    </label>
+                    <input
+                      type="text"
+                      name="id_number"
+                      value={formData.id_number}
+                      onChange={handleChange}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        errors.id_number || validationErrors.id_number
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
+                      placeholder="Nhập số CMND/CCCD"
+                    />
+                    {errors.id_number && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.id_number}
+                      </p>
+                    )}
+                    {validationErrors.id_number && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {validationErrors.id_number}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Ngày chuyển vào <span className="text-red-500">*</span>
+                      </label>
+                      <label className="flex items-center text-sm text-gray-600">
+                        <input
+                          type="checkbox"
+                          checked={syncMoveInDate}
+                          onChange={(e) =>
+                            handleSyncMoveInDateChange(e.target.checked)
+                          }
+                          className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span>Trùng ngày hợp đồng</span>
+                      </label>
+                    </div>
+                    <input
+                      type="date"
+                      name="move_in_date"
+                      value={formData.move_in_date}
+                      onChange={handleChange}
+                      disabled={syncMoveInDate}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        errors.move_in_date
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } ${
+                        syncMoveInDate ? "bg-gray-100 cursor-not-allowed" : ""
+                      }`}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      {syncMoveInDate
+                        ? "Tự động đồng bộ với ngày bắt đầu hợp đồng"
+                        : "Có thể khác với ngày bắt đầu hợp đồng nếu cần"}
+                    </p>
+                    {errors.move_in_date && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.move_in_date}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Ghi chú
+                    </label>
+                    <textarea
+                      name="note"
+                      value={formData.note}
+                      onChange={handleChange}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Ghi chú thêm về người thuê..."
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Thông tin hợp đồng */}
@@ -516,16 +789,12 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Điều khoản hợp đồng
-                  </label>
-                  <textarea
-                    name="terms"
-                    value={formData.terms}
-                    onChange={handleChange}
-                    rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Nhập điều khoản hợp đồng..."
+                  <FileUpload
+                    onFileSelect={handleFileSelect}
+                    selectedFile={contractFile}
+                    onRemove={handleFileRemove}
+                    accept=".pdf,.doc,.docx"
+                    maxSize={10}
                   />
                 </div>
               </div>

@@ -18,12 +18,25 @@ export const roomService = {
     }
   },
 
-  // Get single room by ID
+  // Get single room by ID with tenant information
   async getRoomById(roomId) {
     try {
       const { data, error } = await supabase
         .from("rooms")
-        .select("*")
+        .select(
+          `
+          *,
+          tenants!inner(
+            id,
+            fullname,
+            phone,
+            email,
+            move_in_date,
+            move_out_date,
+            is_active
+          )
+        `
+        )
         .eq("id", roomId)
         .single();
 
@@ -139,6 +152,63 @@ export const roomService = {
       return data;
     } catch (error) {
       console.error("Error updating room status:", error);
+      throw error;
+    }
+  },
+
+  // Cleanup rooms that are marked as OCCUPIED but have no active tenants
+  async cleanupOrphanedRooms(propertyId) {
+    try {
+      // Get all rooms marked as OCCUPIED
+      const { data: occupiedRooms, error: roomsError } = await supabase
+        .from("rooms")
+        .select(
+          `
+          id,
+          code,
+          status,
+          tenants!inner(
+            id,
+            is_active
+          )
+        `
+        )
+        .eq("property_id", propertyId)
+        .eq("status", "OCCUPIED");
+
+      if (roomsError) throw roomsError;
+
+      // Find rooms with no active tenants
+      const orphanedRooms = occupiedRooms.filter(
+        (room) =>
+          !room.tenants ||
+          room.tenants.length === 0 ||
+          !room.tenants.some((tenant) => tenant.is_active)
+      );
+
+      // Update orphaned rooms to VACANT
+      if (orphanedRooms.length > 0) {
+        const roomIds = orphanedRooms.map((room) => room.id);
+        const { error: updateError } = await supabase
+          .from("rooms")
+          .update({
+            status: "VACANT",
+            current_occupants: 0,
+            updated_at: new Date().toISOString(),
+          })
+          .in("id", roomIds);
+
+        if (updateError) throw updateError;
+
+        console.log(
+          `Cleaned up ${orphanedRooms.length} orphaned rooms:`,
+          orphanedRooms.map((room) => room.code)
+        );
+      }
+
+      return orphanedRooms.length;
+    } catch (error) {
+      console.error("Error cleaning up orphaned rooms:", error);
       throw error;
     }
   },
