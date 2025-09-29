@@ -1,0 +1,9 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+Always read the scheme file that I got from supabase with my database, read to understand and know accordingly at 
+/Users/neiht/project/staymate/web-admin/my-app/sql.sql
+and
+/Users/neiht/project/staymate/web-admin/my-app/chat_schema.sql
