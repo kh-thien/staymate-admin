@@ -11,10 +11,15 @@ import Intro from "../features/intro/intro";
 import Dashboard from "../features/dashboard/pages/dashboard";
 import TenantsPage from "../features/tenants/pages/tenants";
 import Contracts from "../features/contracts/pages/contracts";
-import Finance from "../features/finance/pages/finance";
 import Services from "../features/services/pages/services";
 import Property from "../features/property/pages/property";
 import Rooms from "../features/rooms/pages/rooms";
+import Bills from "../features/bills/pages/bills";
+import Maintenance from "../features/maintenance/pages/maintenance";
+import Payments from "../features/payments/pages/payments";
+import Reports from "../features/reports/pages/reports";
+import Meters from "../features/meters/pages/meters";
+import { ChatPage } from "../features/chat";
 
 const router = createBrowserRouter([
   {
@@ -71,16 +76,36 @@ const router = createBrowserRouter([
             element: <Contracts />,
           },
           {
-            path: "/finance",
-            element: <Finance />,
+            path: "/bills",
+            element: <Bills />,
           },
           {
             path: "/services",
             element: <Services />,
           },
           {
+            path: "/maintenance",
+            element: <Maintenance />,
+          },
+          {
+            path: "/payments",
+            element: <Payments />,
+          },
+          {
+            path: "/reports",
+            element: <Reports />,
+          },
+          {
+            path: "/meters",
+            element: <Meters />,
+          },
+          {
             path: "/dashboard",
             element: <Dashboard />,
+          },
+          {
+            path: "/chat",
+            element: <ChatPage />,
           },
         ],
       },
