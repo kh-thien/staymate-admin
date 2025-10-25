@@ -42,6 +42,67 @@ CREATE TABLE public.bills (
   CONSTRAINT bills_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id),
   CONSTRAINT bills_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id)
 );
+CREATE TABLE public.chat_messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  room_id uuid NOT NULL,
+  sender_id uuid NOT NULL,
+  sender_type text NOT NULL,
+  content text NOT NULL,
+  message_type text DEFAULT 'TEXT'::text,
+  file_url text,
+  file_name text,
+  file_size bigint,
+  reply_to uuid,
+  is_edited boolean DEFAULT false,
+  edited_at timestamp with time zone,
+  is_deleted boolean DEFAULT false,
+  deleted_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT chat_messages_pkey PRIMARY KEY (id),
+  CONSTRAINT chat_messages_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.chat_rooms(id),
+  CONSTRAINT chat_messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.users(userid),
+  CONSTRAINT chat_messages_reply_to_fkey FOREIGN KEY (reply_to) REFERENCES public.chat_messages(id)
+);
+CREATE TABLE public.chat_notifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  room_id uuid NOT NULL,
+  message_id uuid NOT NULL,
+  type text NOT NULL,
+  is_read boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT chat_notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT chat_notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(userid),
+  CONSTRAINT chat_notifications_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.chat_rooms(id),
+  CONSTRAINT chat_notifications_message_id_fkey FOREIGN KEY (message_id) REFERENCES public.chat_messages(id)
+);
+CREATE TABLE public.chat_participants (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  room_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  user_type text NOT NULL,
+  joined_at timestamp with time zone DEFAULT now(),
+  last_read_at timestamp with time zone DEFAULT now(),
+  is_active boolean DEFAULT true,
+  CONSTRAINT chat_participants_pkey PRIMARY KEY (id),
+  CONSTRAINT chat_participants_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.chat_rooms(id),
+  CONSTRAINT chat_participants_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(userid)
+);
+CREATE TABLE public.chat_rooms (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  property_id uuid NOT NULL,
+  room_id uuid,
+  name text,
+  type text DEFAULT 'DIRECT'::text,
+  created_by uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  is_active boolean DEFAULT true,
+  CONSTRAINT chat_rooms_pkey PRIMARY KEY (id),
+  CONSTRAINT chat_rooms_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.properties(id),
+  CONSTRAINT chat_rooms_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id),
+  CONSTRAINT chat_rooms_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(userid)
+);
 CREATE TABLE public.contract_tenants (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   contract_id uuid NOT NULL,
@@ -96,6 +157,16 @@ CREATE TABLE public.maintenance_requests (
   CONSTRAINT maintenance_requests_pkey PRIMARY KEY (id),
   CONSTRAINT maintenance_requests_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id),
   CONSTRAINT maintenance_requests_reported_by_fkey FOREIGN KEY (reported_by) REFERENCES public.users(userid)
+);
+CREATE TABLE public.message_reactions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  message_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  reaction text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT message_reactions_pkey PRIMARY KEY (id),
+  CONSTRAINT message_reactions_message_id_fkey FOREIGN KEY (message_id) REFERENCES public.chat_messages(id),
+  CONSTRAINT message_reactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(userid)
 );
 CREATE TABLE public.meters (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

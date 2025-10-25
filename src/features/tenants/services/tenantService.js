@@ -4,9 +4,31 @@ export const tenantService = {
   // Tạo tenant mới
   async createTenant(tenantData) {
     try {
+      // Process data to handle empty date fields and strings
+      const processedData = {
+        ...tenantData,
+        // Convert empty date strings to null for database
+        birthdate: tenantData.birthdate || null,
+        move_in_date: tenantData.move_in_date || null,
+        move_out_date: tenantData.move_out_date || null,
+        // Convert empty strings to null for optional fields
+        email: tenantData.email || null,
+        hometown: tenantData.hometown || null,
+        occupation: tenantData.occupation || null,
+        id_number: tenantData.id_number || null,
+        note: tenantData.note || null,
+        // Emergency contact fields
+        emergency_contact_name: tenantData.emergency_contact_name || null,
+        emergency_contact_phone: tenantData.emergency_contact_phone || null,
+        emergency_contact_relationship:
+          tenantData.emergency_contact_relationship || null,
+        // Account status
+        account_status: tenantData.account_status || "PENDING",
+      };
+
       const { data, error } = await supabase
         .from("tenants")
-        .insert([tenantData])
+        .insert([processedData])
         .select(
           `
           *,
@@ -132,9 +154,31 @@ export const tenantService = {
   // Cập nhật tenant
   async updateTenant(tenantId, updateData) {
     try {
+      // Process data to handle empty date fields and strings
+      const processedData = {
+        ...updateData,
+        // Convert empty date strings to null for database
+        birthdate: updateData.birthdate || null,
+        move_in_date: updateData.move_in_date || null,
+        move_out_date: updateData.move_out_date || null,
+        // Convert empty strings to null for optional fields
+        email: updateData.email || null,
+        hometown: updateData.hometown || null,
+        occupation: updateData.occupation || null,
+        id_number: updateData.id_number || null,
+        note: updateData.note || null,
+        // Emergency contact fields
+        emergency_contact_name: updateData.emergency_contact_name || null,
+        emergency_contact_phone: updateData.emergency_contact_phone || null,
+        emergency_contact_relationship:
+          updateData.emergency_contact_relationship || null,
+        // Account status
+        account_status: updateData.account_status || "PENDING",
+      };
+
       const { data, error } = await supabase
         .from("tenants")
-        .update(updateData)
+        .update(processedData)
         .eq("id", tenantId)
         .select(
           `

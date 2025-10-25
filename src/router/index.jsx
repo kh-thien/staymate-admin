@@ -4,7 +4,6 @@ import SignIn from "../features/auth/pages/signin";
 import SignUp from "../features/auth/pages/signup";
 import Forgot from "../features/auth/pages/forgot";
 import ProtectedLayout from "./protectedLayout";
-import Home from "../features/home/pages/home";
 import ResetPassword from "../features/auth/pages/resetPassword";
 import ConfirmedEmail from "../features/auth/pages/confirmedEmail";
 import Intro from "../features/intro/intro";
@@ -19,7 +18,7 @@ import Maintenance from "../features/maintenance/pages/maintenance";
 import Payments from "../features/payments/pages/payments";
 import Reports from "../features/reports/pages/reports";
 import Meters from "../features/meters/pages/meters";
-import { ChatPage } from "../features/chat";
+import InviteAccept from "../features/tenants/pages/InviteAccept";
 
 const router = createBrowserRouter([
   {
@@ -49,6 +48,10 @@ const router = createBrowserRouter([
       {
         path: "/confirmed-email",
         element: <ConfirmedEmail />,
+      },
+      {
+        path: "/invite/accept",
+        element: <InviteAccept />,
       },
 
       // Required login routes - tất cả routes bên trong đều cần đăng nhập
@@ -102,10 +105,6 @@ const router = createBrowserRouter([
           {
             path: "/dashboard",
             element: <Dashboard />,
-          },
-          {
-            path: "/chat",
-            element: <ChatPage />,
           },
         ],
       },

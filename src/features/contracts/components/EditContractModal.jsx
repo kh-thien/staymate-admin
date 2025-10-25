@@ -8,6 +8,7 @@ const EditContractModal = ({ isOpen, onClose, onSubmit, contract }) => {
     monthly_rent: "",
     deposit: "",
     payment_cycle: "MONTHLY",
+    payment_day: 1,
     terms: "",
   });
 
@@ -23,6 +24,7 @@ const EditContractModal = ({ isOpen, onClose, onSubmit, contract }) => {
         monthly_rent: contract.monthly_rent || "",
         deposit: contract.deposit || "",
         payment_cycle: contract.payment_cycle || "MONTHLY",
+        payment_day: contract.payment_day || 1,
         terms: contract.terms || "",
       });
     }
@@ -269,21 +271,73 @@ const EditContractModal = ({ isOpen, onClose, onSubmit, contract }) => {
                 )}
               </div>
 
-              {/* Chu kỳ thanh toán */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Chu kỳ thanh toán
-                </label>
-                <select
-                  name="payment_cycle"
-                  value={formData.payment_cycle}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="MONTHLY">Hàng tháng</option>
-                  <option value="QUARTERLY">Hàng quý</option>
-                  <option value="YEARLY">Hàng năm</option>
-                </select>
+              {/* Chu kỳ thanh toán và ngày thanh toán */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Chu kỳ thanh toán
+                  </label>
+                  <select
+                    name="payment_cycle"
+                    value={formData.payment_cycle}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="MONTHLY">Hàng tháng</option>
+                    <option value="QUARTERLY">Hàng quý</option>
+                    <option value="YEARLY">Hàng năm</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {formData.payment_cycle === "MONTHLY"
+                      ? "Ngày thanh toán trong tháng"
+                      : formData.payment_cycle === "QUARTERLY"
+                      ? "Ngày thanh toán trong quý"
+                      : "Ngày thanh toán trong năm"}
+                  </label>
+                  <select
+                    name="payment_day"
+                    value={formData.payment_day}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    {formData.payment_cycle === "MONTHLY"
+                      ? // Hàng tháng: chọn ngày 1-31
+                        Array.from({ length: 31 }, (_, i) => i + 1).map(
+                          (day) => (
+                            <option key={day} value={day}>
+                              Ngày {day}
+                            </option>
+                          )
+                        )
+                      : formData.payment_cycle === "QUARTERLY"
+                      ? // Hàng quý: chọn ngày 1-31
+                        Array.from({ length: 31 }, (_, i) => i + 1).map(
+                          (day) => (
+                            <option key={day} value={day}>
+                              Ngày {day}
+                            </option>
+                          )
+                        )
+                      : // Hàng năm: chọn ngày 1-31
+                        Array.from({ length: 31 }, (_, i) => i + 1).map(
+                          (day) => (
+                            <option key={day} value={day}>
+                              Ngày {day}
+                            </option>
+                          )
+                        )}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.payment_cycle === "MONTHLY"
+                      ? "Chọn ngày thanh toán trong tháng (1-31)"
+                      : formData.payment_cycle === "QUARTERLY"
+                      ? "Chọn ngày thanh toán trong tháng (áp dụng cho mỗi quý)"
+                      : "Chọn ngày thanh toán trong tháng (áp dụng cho mỗi năm)"}
+                  </p>
+                </div>
               </div>
 
               {/* Điều khoản */}

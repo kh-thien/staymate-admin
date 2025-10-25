@@ -53,14 +53,6 @@ const AddPropertyModal = ({ isOpen, onClose, onSuccess, editingProperty }) => {
           loadWards(province.code);
         }
       }
-
-      if (editingProperty.ward) {
-        // Tìm ward code từ ward name
-        const ward = wards.find((w) => w.name === editingProperty.ward);
-        if (ward) {
-          setSelectedWard(ward.code);
-        }
-      }
     } else if (!editingProperty && isOpen) {
       // Reset form khi tạo mới
       setFormData({
@@ -75,7 +67,17 @@ const AddPropertyModal = ({ isOpen, onClose, onSuccess, editingProperty }) => {
       setSelectedWard("");
       setWards([]);
     }
-  }, [editingProperty, isOpen, provinces, wards]);
+  }, [editingProperty, isOpen, provinces]);
+
+  // Xử lý set ward khi wards đã load xong
+  useEffect(() => {
+    if (editingProperty && editingProperty.ward && wards.length > 0) {
+      const ward = wards.find((w) => w.name === editingProperty.ward);
+      if (ward) {
+        setSelectedWard(ward.code);
+      }
+    }
+  }, [wards, editingProperty]);
 
   const loadProvinces = async () => {
     try {

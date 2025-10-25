@@ -191,6 +191,67 @@ const TenantCard = ({ tenant, onEdit, onView, onDelete }) => {
           </div>
         </div>
 
+        {/* Emergency Contact & Account Status */}
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <div className="space-y-3">
+            {/* Emergency Contact */}
+            {tenant.emergency_contact_name && (
+              <div className="flex items-center space-x-3">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-600">Liên hệ khẩn cấp</p>
+                  <p className="font-medium text-gray-900">
+                    {tenant.emergency_contact_name}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {tenant.emergency_contact_phone}
+                    {tenant.emergency_contact_relationship &&
+                      ` • ${tenant.emergency_contact_relationship}`}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Account Status */}
+            <div className="flex items-center space-x-3">
+              <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+              <div className="flex-1">
+                <p className="text-sm text-gray-600">Trạng thái tài khoản</p>
+                <div className="flex items-center space-x-2">
+                  <span
+                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      tenant.account_status === "ACTIVE"
+                        ? "bg-green-100 text-green-800"
+                        : tenant.account_status === "PENDING"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : tenant.account_status === "SUSPENDED"
+                        ? "bg-orange-100 text-orange-800"
+                        : tenant.account_status === "DELETED"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-gray-100 text-gray-800"
+                    }`}
+                  >
+                    {tenant.account_status === "ACTIVE"
+                      ? "Đang hoạt động"
+                      : tenant.account_status === "PENDING"
+                      ? "Chờ duyệt"
+                      : tenant.account_status === "SUSPENDED"
+                      ? "Đã tạm khóa"
+                      : tenant.account_status === "DELETED"
+                      ? "Đã xóa"
+                      : "Không xác định"}
+                  </span>
+                  {tenant.user_id && (
+                    <span className="text-xs text-gray-500">
+                      • Có tài khoản
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Actions */}
         <div className="flex flex-col gap-2 mt-6">
           <button

@@ -7,7 +7,7 @@ import { supabase } from "../../../core/data/remote/supabase";
 const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
   const [tenantOption, setTenantOption] = useState("new"); // "new" or "existing"
   const [selectedTenant, setSelectedTenant] = useState(null);
-  const [contractFile, setContractFile] = useState(null);
+  const [contractFiles, setContractFiles] = useState([]);
   const [syncMoveInDate, setSyncMoveInDate] = useState(true); // Checkbox để đồng bộ move_in_date với start_date
 
   const [formData, setFormData] = useState({
@@ -30,6 +30,7 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
     monthly_rent: "",
     deposit: "",
     payment_cycle: "MONTHLY",
+    payment_day: 1,
   });
 
   const [loading, setLoading] = useState(false);
@@ -46,6 +47,7 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
         deposit: room.deposit_amount || "",
         start_date: today,
         move_in_date: today, // Đồng bộ với start_date
+        payment_day: 1, // Mặc định ngày 1
       }));
     }
   }, [isOpen, room]);
@@ -124,43 +126,67 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
     }));
   };
 
-  const handleFileSelect = (file) => {
-    setContractFile(file);
+  const handleFileSelect = (files) => {
+    // Convert FileList to Array if needed
+    const fileArray = Array.from(files);
+    setContractFiles((prev) => [...prev, ...fileArray]);
   };
 
-  const handleFileRemove = () => {
-    setContractFile(null);
+  const handleFileRemove = (index) => {
+    setContractFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleClearAllFiles = () => {
+    setContractFiles([]);
   };
 
   // Validate duplicate phone and id_number
-  const validateTenantUniqueness = async (phone, idNumber) => {
+  const validateTenantUniqueness = async (
+    phone,
+    idNumber,
+    excludeTenantId = null
+  ) => {
     const errors = {};
 
     // Check phone uniqueness
     if (phone) {
-      const { data: phoneCheck, error: phoneError } = await supabase
+      let query = supabase
         .from("tenants")
-        .select("id, phone")
+        .select("id, phone, fullname")
         .eq("phone", phone)
-        .eq("is_active", true)
-        .single();
+        .eq("is_active", true);
 
-      if (phoneCheck && !phoneError) {
-        errors.phone = "Số điện thoại này đã được sử dụng bởi người thuê khác";
+      // Exclude current tenant if updating
+      if (excludeTenantId) {
+        query = query.neq("id", excludeTenantId);
+      }
+
+      const { data: phoneCheck } = await query;
+
+      // If we found records (not empty array), it means phone is duplicated
+      if (phoneCheck && phoneCheck.length > 0) {
+        errors.phone = `Số điện thoại này đã được sử dụng bởi ${phoneCheck[0].fullname}`;
       }
     }
 
     // Check id_number uniqueness
     if (idNumber) {
-      const { data: idCheck, error: idError } = await supabase
+      let query = supabase
         .from("tenants")
-        .select("id, id_number")
+        .select("id, id_number, fullname")
         .eq("id_number", idNumber)
-        .eq("is_active", true)
-        .single();
+        .eq("is_active", true);
 
-      if (idCheck && !idError) {
-        errors.id_number = "CMND/CCCD này đã được sử dụng bởi người thuê khác";
+      // Exclude current tenant if updating
+      if (excludeTenantId) {
+        query = query.neq("id", excludeTenantId);
+      }
+
+      const { data: idCheck } = await query;
+
+      // If we found records (not empty array), it means id_number is duplicated
+      if (idCheck && idCheck.length > 0) {
+        errors.id_number = `CMND/CCCD này đã được sử dụng bởi ${idCheck[0].fullname}`;
       }
     }
 
@@ -176,6 +202,23 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
         move_in_date: prev.start_date,
       }));
     }
+  };
+
+  // Handle start_date change to sync with move_in_date if sync is enabled
+  const handleStartDateChange = (value) => {
+    setFormData((prev) => {
+      const newData = {
+        ...prev,
+        start_date: value,
+      };
+
+      // Nếu sync được bật, cập nhật move_in_date
+      if (syncMoveInDate) {
+        newData.move_in_date = value;
+      }
+
+      return newData;
+    });
   };
 
   const validateForm = () => {
@@ -296,16 +339,10 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
           monthly_rent: parseFloat(formData.monthly_rent),
           deposit: parseFloat(formData.deposit) || 0,
           payment_cycle: formData.payment_cycle,
+          payment_day: parseInt(formData.payment_day) || 1,
           status: "ACTIVE",
-          // File information
-          contract_file: contractFile
-            ? {
-                file: contractFile,
-                name: contractFile.name,
-                size: contractFile.size,
-                type: contractFile.type,
-              }
-            : null,
+          // Files information
+          contract_files: contractFiles.length > 0 ? contractFiles : null,
         },
 
         // Thông tin phòng
@@ -333,7 +370,7 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
   const resetForm = () => {
     setTenantOption("new");
     setSelectedTenant(null);
-    setContractFile(null);
+    setContractFiles([]);
     setSyncMoveInDate(true);
     setFormData({
       fullname: "",
@@ -352,6 +389,7 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
       monthly_rent: "",
       deposit: "",
       payment_cycle: "MONTHLY",
+      payment_day: 1,
     });
     setErrors({});
   };
@@ -691,7 +729,7 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
                       type="date"
                       name="start_date"
                       value={formData.start_date}
-                      onChange={handleChange}
+                      onChange={(e) => handleStartDateChange(e.target.value)}
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                         errors.start_date ? "border-red-500" : "border-gray-300"
                       }`}
@@ -772,30 +810,186 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Chu kỳ thanh toán
-                  </label>
-                  <select
-                    name="payment_cycle"
-                    value={formData.payment_cycle}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="MONTHLY">Hàng tháng</option>
-                    <option value="QUARTERLY">Hàng quý</option>
-                    <option value="YEARLY">Hàng năm</option>
-                  </select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Chu kỳ thanh toán
+                    </label>
+                    <select
+                      name="payment_cycle"
+                      value={formData.payment_cycle}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="MONTHLY">Hàng tháng</option>
+                      <option value="QUARTERLY">Hàng quý</option>
+                      <option value="YEARLY">Hàng năm</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {formData.payment_cycle === "MONTHLY"
+                        ? "Ngày thanh toán trong tháng"
+                        : formData.payment_cycle === "QUARTERLY"
+                        ? "Ngày thanh toán trong quý"
+                        : "Ngày thanh toán trong năm"}
+                    </label>
+                    <select
+                      name="payment_day"
+                      value={formData.payment_day}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      {formData.payment_cycle === "MONTHLY"
+                        ? // Hàng tháng: chọn ngày 1-31
+                          Array.from({ length: 31 }, (_, i) => i + 1).map(
+                            (day) => (
+                              <option key={day} value={day}>
+                                Ngày {day}
+                              </option>
+                            )
+                          )
+                        : formData.payment_cycle === "QUARTERLY"
+                        ? // Hàng quý: chọn ngày 1-31
+                          Array.from({ length: 31 }, (_, i) => i + 1).map(
+                            (day) => (
+                              <option key={day} value={day}>
+                                Ngày {day}
+                              </option>
+                            )
+                          )
+                        : // Hàng năm: chọn ngày 1-31
+                          Array.from({ length: 31 }, (_, i) => i + 1).map(
+                            (day) => (
+                              <option key={day} value={day}>
+                                Ngày {day}
+                              </option>
+                            )
+                          )}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {formData.payment_cycle === "MONTHLY"
+                        ? "Chọn ngày thanh toán trong tháng (1-31)"
+                        : formData.payment_cycle === "QUARTERLY"
+                        ? "Chọn ngày thanh toán trong tháng (áp dụng cho mỗi quý)"
+                        : "Chọn ngày thanh toán trong tháng (áp dụng cho mỗi năm)"}
+                    </p>
+                  </div>
                 </div>
 
                 <div>
-                  <FileUpload
-                    onFileSelect={handleFileSelect}
-                    selectedFile={contractFile}
-                    onRemove={handleFileRemove}
-                    accept=".pdf,.doc,.docx"
-                    maxSize={10}
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ảnh hợp đồng thuê trọ
+                  </label>
+                  <div className="space-y-4">
+                    {/* File Upload Input */}
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*,.pdf,.doc,.docx"
+                        onChange={(e) => handleFileSelect(e.target.files)}
+                        className="hidden"
+                        id="contract-files-upload"
+                      />
+                      <label
+                        htmlFor="contract-files-upload"
+                        className="cursor-pointer flex flex-col items-center space-y-2"
+                      >
+                        <svg
+                          className="w-12 h-12 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                          />
+                        </svg>
+                        <div className="text-sm text-gray-600">
+                          <span className="font-medium text-blue-600 hover:text-blue-500">
+                            Chọn nhiều ảnh
+                          </span>{" "}
+                          hoặc kéo thả vào đây
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          Hỗ trợ: JPG, PNG, PDF, DOC, DOCX (tối đa 10MB mỗi
+                          file)
+                        </p>
+                      </label>
+                    </div>
+
+                    {/* Selected Files List */}
+                    {contractFiles.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium text-gray-700">
+                            Files đã chọn ({contractFiles.length})
+                          </h4>
+                          <button
+                            type="button"
+                            onClick={handleClearAllFiles}
+                            className="text-sm text-red-600 hover:text-red-800"
+                          >
+                            Xóa tất cả
+                          </button>
+                        </div>
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {contractFiles.map((file, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between bg-gray-50 rounded-lg p-2"
+                            >
+                              <div className="flex items-center space-x-2">
+                                <svg
+                                  className="w-4 h-4 text-gray-500"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                  />
+                                </svg>
+                                <span className="text-sm text-gray-700 truncate">
+                                  {file.name}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleFileRemove(index)}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M6 18L18 6M6 6l12 12"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

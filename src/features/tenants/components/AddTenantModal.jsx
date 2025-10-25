@@ -13,6 +13,10 @@ const AddTenantModal = ({ isOpen, onClose, onSubmit }) => {
     note: "",
     move_in_date: new Date().toISOString().split("T")[0],
     room_id: "",
+    emergency_contact_name: "",
+    emergency_contact_phone: "",
+    emergency_contact_relationship: "",
+    account_status: "PENDING",
   });
 
   const [loading, setLoading] = useState(false);
@@ -33,6 +37,10 @@ const AddTenantModal = ({ isOpen, onClose, onSubmit }) => {
         note: "",
         move_in_date: new Date().toISOString().split("T")[0],
         room_id: "",
+        emergency_contact_name: "",
+        emergency_contact_phone: "",
+        emergency_contact_relationship: "",
+        account_status: "PENDING",
       });
       setErrors({});
     }
@@ -88,7 +96,20 @@ const AddTenantModal = ({ isOpen, onClose, onSubmit }) => {
 
     setLoading(true);
     try {
-      await onSubmit(formData);
+      // Process form data to handle empty date fields
+      const processedData = {
+        ...formData,
+        // Convert empty date strings to null for database
+        birthdate: formData.birthdate || null,
+        // Convert empty strings to null for optional fields
+        email: formData.email || null,
+        hometown: formData.hometown || null,
+        occupation: formData.occupation || null,
+        id_number: formData.id_number || null,
+        note: formData.note || null,
+      };
+
+      await onSubmit(processedData);
     } catch (error) {
       console.error("Error creating tenant:", error);
     } finally {
@@ -318,6 +339,88 @@ const AddTenantModal = ({ isOpen, onClose, onSubmit }) => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Ghi chú thêm về người thuê..."
                   />
+                </div>
+              </div>
+            </div>
+
+            {/* Emergency Contact */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Liên hệ khẩn cấp
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Họ tên người liên hệ
+                  </label>
+                  <input
+                    type="text"
+                    name="emergency_contact_name"
+                    value={formData.emergency_contact_name}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Nhập họ tên"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Số điện thoại
+                  </label>
+                  <input
+                    type="tel"
+                    name="emergency_contact_phone"
+                    value={formData.emergency_contact_phone}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Nhập số điện thoại"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Mối quan hệ
+                  </label>
+                  <select
+                    name="emergency_contact_relationship"
+                    value={formData.emergency_contact_relationship}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Chọn mối quan hệ</option>
+                    <option value="Cha/Mẹ">Cha/Mẹ</option>
+                    <option value="Anh/Chị/Em">Anh/Chị/Em</option>
+                    <option value="Bạn bè">Bạn bè</option>
+                    <option value="Người thân">Người thân</option>
+                    <option value="Khác">Khác</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Account Status */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Trạng thái tài khoản
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Trạng thái tài khoản
+                  </label>
+                  <select
+                    name="account_status"
+                    value={formData.account_status}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="PENDING">Chờ duyệt</option>
+                    <option value="ACTIVE">Hoạt động</option>
+                    <option value="SUSPENDED">Tạm khóa</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Chọn trạng thái tài khoản cho người thuê
+                  </p>
                 </div>
               </div>
             </div>

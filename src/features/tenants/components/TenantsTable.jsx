@@ -43,6 +43,12 @@ const TenantsTable = ({ tenants, onEdit, onView, onDelete }) => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Liên hệ
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Liên hệ khẩn cấp
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Tài khoản
+              </th>
               <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Thao tác
               </th>
@@ -131,6 +137,59 @@ const TenantsTable = ({ tenants, onEdit, onView, onDelete }) => {
                       {tenant.email}
                     </div>
                   )}
+                </td>
+
+                {/* Liên hệ khẩn cấp */}
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {tenant.emergency_contact_name ? (
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {tenant.emergency_contact_name}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {tenant.emergency_contact_phone}
+                      </div>
+                      {tenant.emergency_contact_relationship && (
+                        <div className="text-xs text-gray-400">
+                          {tenant.emergency_contact_relationship}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-sm text-gray-500">Chưa cập nhật</span>
+                  )}
+                </td>
+
+                {/* Tài khoản */}
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="space-y-1">
+                    <span
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        tenant.account_status === "ACTIVE"
+                          ? "bg-green-100 text-green-800"
+                          : tenant.account_status === "PENDING"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : tenant.account_status === "SUSPENDED"
+                          ? "bg-orange-100 text-orange-800"
+                          : tenant.account_status === "DELETED"
+                          ? "bg-red-100 text-red-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {tenant.account_status === "ACTIVE"
+                        ? "Đang hoạt động"
+                        : tenant.account_status === "PENDING"
+                        ? "Chờ duyệt"
+                        : tenant.account_status === "SUSPENDED"
+                        ? "Đã tạm khóa"
+                        : tenant.account_status === "DELETED"
+                        ? "Đã xóa"
+                        : "Không xác định"}
+                    </span>
+                    {tenant.user_id && (
+                      <div className="text-xs text-gray-500">Có tài khoản</div>
+                    )}
+                  </div>
                 </td>
 
                 {/* Thao tác */}

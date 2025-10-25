@@ -2,14 +2,18 @@ import { supabase } from "../../../core/data/remote/supabase";
 
 export const contractFileService = {
   // Upload contract file to Supabase Storage
-  async uploadContractFile(file, contractId = null) {
+  async uploadContractFile(file, contractNumber = null) {
     try {
-      // Generate unique filename
-      const timestamp = new Date().getTime();
+      // Generate contract folder name from contract number
+      const contractFolder = contractNumber || `temp_${Date.now()}`;
+
+      // Generate filename (keep original name or create new one)
       const fileExtension = file.name.split(".").pop();
-      const contractIdPart = contractId || "temp";
-      const fileName = `contract_${contractIdPart}_${timestamp}.${fileExtension}`;
-      const filePath = `contracts-staymate/${fileName}`;
+      const timestamp = new Date().getTime();
+      const fileName = `hop-dong-${timestamp}.${fileExtension}`;
+
+      // Create file path: {contract_number}/{filename}
+      const filePath = `${contractFolder}/${fileName}`;
 
       // Upload file to Supabase Storage
       const { data, error } = await supabase.storage
@@ -28,7 +32,7 @@ export const contractFileService = {
           );
         } else if (error.message.includes("bucket")) {
           throw new Error(
-            "Bucket 'contract' không tồn tại. Vui lòng tạo bucket trước."
+            "Bucket 'contracts' không tồn tại. Vui lòng tạo bucket trước."
           );
         } else {
           throw new Error(`Lỗi upload file: ${error.message}`);
@@ -49,10 +53,106 @@ export const contractFileService = {
           originalName: file.name,
           size: file.size,
           type: file.type,
+          contractFolder: contractFolder,
         },
       };
     } catch (error) {
       console.error("Contract file upload error:", error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  },
+
+  // Upload multiple contract files
+  async uploadMultipleContractFiles(files, contractNumber) {
+    try {
+      const uploadResults = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const result = await this.uploadContractFile(file, contractNumber);
+
+        if (result.success) {
+          uploadResults.push({
+            ...result.data,
+            uploadOrder: i + 1,
+          });
+        } else {
+          throw new Error(`Upload file ${i + 1} failed: ${result.error}`);
+        }
+      }
+
+      return {
+        success: true,
+        data: uploadResults,
+      };
+    } catch (error) {
+      console.error("Multiple contract files upload error:", error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  },
+
+  // Save contract files to database
+  async saveContractFilesToDatabase(contractId, filesData) {
+    try {
+      const filesToInsert = filesData.map((fileData, index) => ({
+        contract_id: contractId,
+        file_path: fileData.path,
+        file_name: fileData.fileName,
+        original_name: fileData.originalName,
+        file_size: fileData.size,
+        file_type: fileData.type,
+        upload_order: fileData.uploadOrder || index + 1,
+      }));
+
+      const { data, error } = await supabase
+        .from("contract_files")
+        .insert(filesToInsert)
+        .select();
+
+      if (error) throw error;
+
+      return {
+        success: true,
+        data: data,
+      };
+    } catch (error) {
+      console.error("Error saving contract files to database:", error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  },
+
+  // Get contract files from database
+  async getContractFiles(contractId) {
+    try {
+      const { data, error } = await supabase
+        .from("contract_files")
+        .select("*")
+        .eq("contract_id", contractId)
+        .order("upload_order", { ascending: true });
+
+      if (error) throw error;
+
+      // Add publicUrl to each file
+      const filesWithUrls = (data || []).map((file) => ({
+        ...file,
+        publicUrl: this.getContractFileUrl(file.file_path),
+      }));
+
+      return {
+        success: true,
+        data: filesWithUrls,
+      };
+    } catch (error) {
+      console.error("Error getting contract files:", error);
       return {
         success: false,
         error: error.message,
