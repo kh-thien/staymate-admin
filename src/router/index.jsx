@@ -19,6 +19,7 @@ import Payments from "../features/payments/pages/payments";
 import Reports from "../features/reports/pages/reports";
 import Meters from "../features/meters/pages/meters";
 import InviteAccept from "../features/tenants/pages/InviteAccept";
+import { ChatPage } from "../features/chat";
 
 const router = createBrowserRouter([
   {
@@ -105,6 +106,10 @@ const router = createBrowserRouter([
           {
             path: "/dashboard",
             element: <Dashboard />,
+          },
+          {
+            path: "/chat",
+            element: <ChatPage />,
           },
         ],
       },
