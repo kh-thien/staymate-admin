@@ -3,6 +3,7 @@ import React from "react";
 const StatsCard = ({
   title,
   value,
+  subtitle,
   change,
   changeType,
   icon,
@@ -44,7 +45,7 @@ const StatsCard = ({
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-medium text-gray-600">{title}</h3>
         <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
-          {icon && <icon className="h-6 w-6" />}
+          {icon && React.createElement(icon, { className: "h-6 w-6" })}
         </div>
       </div>
 
@@ -53,7 +54,9 @@ const StatsCard = ({
           {typeof value === "number" ? value.toLocaleString() : value}
         </p>
 
-        {change !== undefined && (
+        {subtitle ? (
+          <p className="text-sm text-gray-600">{subtitle}</p>
+        ) : change !== undefined ? (
           <div className="flex items-center space-x-1">
             <span
               className={`text-sm font-medium ${changeColorClasses[changeType]}`}
@@ -63,7 +66,7 @@ const StatsCard = ({
             </span>
             <span className="text-sm text-gray-500">so với tháng trước</span>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

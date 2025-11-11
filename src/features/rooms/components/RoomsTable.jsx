@@ -8,7 +8,7 @@ import {
   createColumnHelper,
 } from "@tanstack/react-table";
 
-const RoomsTable = ({ rooms, onEdit, onDelete, onStatusChange }) => {
+const RoomsTable = ({ rooms, onEdit, onDelete, onRental }) => {
   const columnHelper = createColumnHelper();
 
   const getStatusColor = (status) => {
@@ -118,29 +118,14 @@ const RoomsTable = ({ rooms, onEdit, onDelete, onStatusChange }) => {
             >
               Sửa
             </button>
-            <button
-              onClick={() => {
-                if (room.status === "OCCUPIED") {
-                  // Giải phóng phòng
-                  onStatusChange(room.id, "VACANT", 0);
-                } else {
-                  // Không cho phép "Cho thuê" từ đây - phải dùng modal rental
-                  alert(
-                    "Vui lòng sử dụng nút 'Cho thuê' trong RoomCard để tạo hợp đồng và thêm thông tin người thuê."
-                  );
-                }
-              }}
-              className={`text-sm font-medium ${
-                room.status === "OCCUPIED"
-                  ? "text-green-600 hover:text-green-800"
-                  : "text-gray-400 cursor-not-allowed"
-              }`}
-              disabled={room.status === "VACANT"}
-            >
-              {room.status === "OCCUPIED"
-                ? "Giải phóng"
-                : "Sử dụng modal cho thuê"}
-            </button>
+            {room.status === "VACANT" && onRental && (
+              <button
+                onClick={() => onRental(room)}
+                className="text-green-600 hover:text-green-800 text-sm font-medium"
+              >
+                Cho thuê
+              </button>
+            )}
             <button
               onClick={() => onDelete(room.id)}
               className="text-red-600 hover:text-red-800 text-sm font-medium"

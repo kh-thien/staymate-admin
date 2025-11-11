@@ -32,7 +32,7 @@ const ContractsTable = ({
         return "red";
       case "DRAFT":
         return "yellow";
-      case "CANCELLED":
+      case "TERMINATED":
         return "gray";
       default:
         return "gray";
@@ -47,8 +47,8 @@ const ContractsTable = ({
         return "Đã hết hạn";
       case "DRAFT":
         return "Bản nháp";
-      case "CANCELLED":
-        return "Đã hủy";
+      case "TERMINATED":
+        return "Đã chấm dứt";
       default:
         return status;
     }
@@ -61,33 +61,28 @@ const ContractsTable = ({
       columnHelper.accessor("contract_number", {
         header: "Số hợp đồng",
         cell: ({ row }) => (
-          <div>
-            <div className="text-sm font-medium text-gray-900">
-              {row.original.contract_number || "N/A"}
-            </div>
-            <div className="text-sm text-gray-500">
-              {formatDate(row.original.created_at)}
-            </div>
+          <div className="text-sm font-semibold text-gray-900">
+            {row.original.contract_number || "N/A"}
           </div>
         ),
       }),
       columnHelper.accessor("tenants.fullname", {
         header: "Người thuê",
         cell: ({ row }) => (
-          <div className="flex items-center">
-            <div className="flex-shrink-0 h-10 w-10">
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <span className="text-sm font-medium text-white">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 h-8 w-8">
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+                <span className="text-xs font-semibold text-white">
                   {row.original.tenants?.fullname?.charAt(0)?.toUpperCase() ||
                     "N"}
                 </span>
               </div>
             </div>
-            <div className="ml-4">
-              <div className="text-sm font-medium text-gray-900">
+            <div>
+              <div className="text-sm font-semibold text-gray-900">
                 {row.original.tenants?.fullname || "N/A"}
               </div>
-              <div className="text-sm text-gray-500">
+              <div className="text-xs text-gray-500 mt-0.5">
                 {row.original.tenants?.phone || "N/A"}
               </div>
             </div>
@@ -98,13 +93,13 @@ const ContractsTable = ({
         header: "Phòng",
         cell: ({ row }) => (
           <div>
-            <div className="text-sm font-medium text-gray-900">
+            <div className="text-sm font-semibold text-gray-900">
               {row.original.rooms?.code || "N/A"}
             </div>
-            <div className="text-sm text-gray-500">
+            <div className="text-xs text-gray-600 mt-0.5">
               {row.original.rooms?.name || "N/A"}
             </div>
-            <div className="text-xs text-gray-400">
+            <div className="text-xs text-gray-400 mt-0.5">
               {row.original.rooms?.properties?.name || "N/A"}
             </div>
           </div>
@@ -114,19 +109,26 @@ const ContractsTable = ({
         header: "Thời gian",
         cell: ({ row }) => (
           <div className="text-sm text-gray-900">
-            <div>Bắt đầu: {formatDate(row.original.start_date)}</div>
-            <div>Kết thúc: {formatDate(row.original.end_date)}</div>
+            <div className="font-medium">Bắt đầu: {formatDate(row.original.start_date)}</div>
+            <div className="text-xs text-gray-500 mt-0.5">Kết thúc: {formatDate(row.original.end_date)}</div>
           </div>
         ),
       }),
       columnHelper.accessor("status", {
         header: "Trạng thái",
         cell: ({ row }) => (
-          <StatusBadge
-            status={row.original.status}
-            color={getStatusColor(row.original.status)}
-            text={getStatusText(row.original.status)}
-          />
+          <div>
+            <StatusBadge
+              status={row.original.status}
+              color={getStatusColor(row.original.status)}
+              text={getStatusText(row.original.status)}
+            />
+            {row.original.status === "TERMINATED" && row.original.terminated_date && (
+              <div className="text-xs text-gray-500 mt-1">
+                {formatDate(row.original.terminated_date)}
+              </div>
+            )}
+          </div>
         ),
       }),
       columnHelper.display({
@@ -141,7 +143,7 @@ const ContractsTable = ({
             onExtend={() => onExtend(row.original)}
             canDelete={
               row.original.status === "EXPIRED" ||
-              row.original.status === "CANCELLED"
+              row.original.status === "TERMINATED"
             }
             deleteReason={
               row.original.status === "ACTIVE"
@@ -150,6 +152,7 @@ const ContractsTable = ({
             }
             canTerminate={row.original.status === "ACTIVE"}
             canExtend={row.original.status === "ACTIVE"}
+            canEdit={row.original.status !== "TERMINATED"}
           />
         ),
       }),
@@ -172,16 +175,16 @@ const ContractsTable = ({
   });
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50/50">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
                   >
                     {header.isPlaceholder
                       ? null
@@ -194,13 +197,13 @@ const ContractsTable = ({
               </tr>
             ))}
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-gray-100">
             {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="hover:bg-gray-50 transition-colors">
+              <tr key={row.id} className="hover:bg-gray-50/50 transition-colors">
                 {row.getVisibleCells().map((cell) => (
                   <td
                     key={cell.id}
-                    className="px-6 py-4 whitespace-nowrap text-sm font-medium"
+                    className="px-4 py-3 text-sm"
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
@@ -211,36 +214,18 @@ const ContractsTable = ({
         </table>
       </div>
 
-      {/* Pagination */}
-      <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-        <div className="flex-1 flex justify-between sm:hidden">
-          <button
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-            className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Trước
-          </button>
-          <button
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-            className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Sau
-          </button>
-        </div>
-
-        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm text-gray-700">
+      {/* Pagination - TailAdmin style */}
+      <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200">
+        <div className="flex-1 flex items-center justify-between">
+          <p className="text-xs text-gray-600">
               Hiển thị{" "}
-              <span className="font-medium">
+            <span className="font-semibold text-gray-900">
                 {table.getState().pagination.pageIndex *
                   table.getState().pagination.pageSize +
                   1}
               </span>{" "}
               đến{" "}
-              <span className="font-medium">
+            <span className="font-semibold text-gray-900">
                 {Math.min(
                   (table.getState().pagination.pageIndex + 1) *
                     table.getState().pagination.pageSize,
@@ -248,57 +233,35 @@ const ContractsTable = ({
                 )}
               </span>{" "}
               trong{" "}
-              <span className="font-medium">
+            <span className="font-semibold text-gray-900">
                 {table.getFilteredRowModel().rows.length}
               </span>{" "}
               kết quả
             </p>
-          </div>
-          <div>
-            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+          <div className="flex items-center gap-2">
               <button
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
-                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span className="sr-only">Trước</span>
-                <svg
-                  className="h-5 w-5"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
+              className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
+              Trước
               </button>
-
-              <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                Trang {table.getState().pagination.pageIndex + 1} /{" "}
-                {table.getPageCount()}
+            <span className="px-3 py-1.5 text-xs font-medium text-gray-700">
+              Trang {table.getState().pagination.pageIndex + 1} / {table.getPageCount()}
               </span>
-
               <button
                 onClick={() => table.nextPage()}
                 disabled={!table.getCanNextPage()}
-                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span className="sr-only">Sau</span>
-                <svg
-                  className="h-5 w-5"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                    clipRule="evenodd"
-                  />
+              className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+            >
+              Sau
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </button>
-            </nav>
           </div>
         </div>
       </div>

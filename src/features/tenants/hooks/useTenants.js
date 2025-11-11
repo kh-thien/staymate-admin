@@ -1,16 +1,36 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { tenantService } from "../services/tenantService";
+import { useAuth } from "../../auth/context/useAuth";
 
 export const useTenants = (filters = {}) => {
+  const { user } = useAuth();
   const [tenants, setTenants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Memoize filters để tránh re-create function mỗi lần render
+  const memoizedFilters = useMemo(() => filters, [
+    filters?.search,
+    filters?.status,
+    filters?.room,
+    filters?.property,
+    filters?.sortBy,
+    filters?.sortOrder,
+  ]);
 
   const fetchTenants = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await tenantService.getTenants(filters);
+      if (!user) {
+        setTenants([]);
+        setLoading(false);
+        return;
+      }
+      const data = await tenantService.getTenants({
+        ...memoizedFilters,
+        created_by: user.id,
+      });
       setTenants(data);
     } catch (err) {
       setError(err.message);
@@ -18,14 +38,7 @@ export const useTenants = (filters = {}) => {
     } finally {
       setLoading(false);
     }
-  }, [
-    filters.search,
-    filters.status,
-    filters.room,
-    filters.property,
-    filters.sortBy,
-    filters.sortOrder,
-  ]);
+  }, [memoizedFilters, user?.id]);
 
   useEffect(() => {
     fetchTenants();
@@ -33,7 +46,11 @@ export const useTenants = (filters = {}) => {
 
   const createTenant = async (tenantData) => {
     try {
-      const newTenant = await tenantService.createTenant(tenantData);
+      if (!user) throw new Error("User not authenticated");
+      const newTenant = await tenantService.createTenant({
+        ...tenantData,
+        created_by: user.id,
+      });
       setTenants((prev) => [newTenant, ...prev]);
       return newTenant;
     } catch (err) {
@@ -102,14 +119,15 @@ export const useTenants = (filters = {}) => {
     }
   };
 
-  const getTenantStats = async () => {
+  const getTenantStats = useCallback(async () => {
     try {
-      return await tenantService.getTenantStats();
+      if (!user) return { total: 0, active: 0, inactive: 0 };
+      return await tenantService.getTenantStats({ created_by: user.id });
     } catch (err) {
       setError(err.message);
       throw err;
     }
-  };
+  }, [user?.id]);
 
   const getTenantsMovingOut = async (days = 30) => {
     try {

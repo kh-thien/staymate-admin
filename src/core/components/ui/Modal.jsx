@@ -8,6 +8,7 @@ const Modal = ({
   children,
   size = "md",
   showCloseButton = true,
+  className = "",
 }) => {
   useEffect(() => {
     const handleEscape = (e) => {
@@ -48,7 +49,7 @@ const Modal = ({
 
         {/* Modal */}
         <div
-          className={`relative w-full ${sizeClasses[size]} transform rounded-xl bg-white shadow-xl transition-all`}
+          className={`relative w-full ${sizeClasses[size]} transform rounded-xl bg-white shadow-xl transition-all ${className}`}
         >
           {/* Header */}
           {title && (
@@ -66,7 +67,7 @@ const Modal = ({
           )}
 
           {/* Content */}
-          <div className="px-6 py-4">{children}</div>
+          <div className="px-6 py-4 overflow-x-auto max-h-[85vh]">{children}</div>
         </div>
       </div>
     </div>

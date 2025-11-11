@@ -5,7 +5,6 @@ const Pagination = ({
   totalPages,
   onPageChange,
   totalItems,
-  itemsPerPage,
   startIndex,
   endIndex,
 }) => {
@@ -26,10 +25,10 @@ const Pagination = ({
         <button
           key={i}
           onClick={() => onPageChange(i)}
-          className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+          className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
             i === currentPage
-              ? "bg-blue-600 text-white shadow-sm"
-              : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+              ? "bg-[#3C50E0] text-white"
+              : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
           }`}
         >
           {i}
@@ -41,28 +40,27 @@ const Pagination = ({
   };
 
   return (
-    <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-t border-gray-200">
-      <div className="flex items-center text-sm text-gray-700">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 bg-gray-50 border-t border-gray-200">
+      <div className="text-xs text-gray-600">
         <span>
-          Hiển thị {startIndex + 1} đến {Math.min(endIndex, totalItems)} trong
-          tổng số {totalItems} người thuê
+          {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems}
         </span>
       </div>
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center gap-1">
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Trước
+          ←
         </button>
         {renderPageNumbers()}
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Sau
+          →
         </button>
       </div>
     </div>

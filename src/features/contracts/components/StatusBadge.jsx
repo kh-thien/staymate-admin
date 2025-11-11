@@ -18,7 +18,7 @@ const StatusBadge = ({ status, color, text }) => {
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getColorClasses(
+      className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold ${getColorClasses(
         color
       )}`}
     >

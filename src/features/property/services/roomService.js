@@ -9,11 +9,6 @@ export const roomService = {
         .select(
           `
           *,
-          floors (
-            id,
-            floor_number,
-            name
-          ),
           tenants (
             id,
             fullname,

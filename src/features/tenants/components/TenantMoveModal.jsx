@@ -207,14 +207,6 @@ const TenantMoveModal = ({
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Ngày chuyển vào</p>
-                  <p className="font-medium text-gray-900">
-                    {tenant.move_in_date
-                      ? new Date(tenant.move_in_date).toLocaleDateString(
-                          "vi-VN"
-                        )
-                      : "N/A"}
-                  </p>
                 </div>
               </div>
             </div>

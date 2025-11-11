@@ -1,13 +1,14 @@
 import { supabase } from "../../../core/data/remote/supabase";
 
 export const roomService = {
-  // Get all rooms for a property
+  // Get all rooms for a property (exclude deleted)
   async getRoomsByProperty(propertyId) {
     try {
       const { data, error } = await supabase
         .from("rooms")
         .select("*")
         .eq("property_id", propertyId)
+        .is("deleted_at", null) // Only get non-deleted rooms
         .order("code", { ascending: true });
 
       if (error) throw error;
@@ -18,7 +19,7 @@ export const roomService = {
     }
   },
 
-  // Get single room by ID with tenant information
+  // Get single room by ID with tenant information (exclude deleted)
   async getRoomById(roomId) {
     try {
       const { data, error } = await supabase
@@ -26,18 +27,18 @@ export const roomService = {
         .select(
           `
           *,
-          tenants!inner(
+          tenants(
             id,
             fullname,
             phone,
             email,
-            move_in_date,
-            move_out_date,
-            is_active
+            is_active,
+            active_in_room
           )
         `
         )
         .eq("id", roomId)
+        .is("deleted_at", null) // Only get non-deleted room
         .single();
 
       if (error) throw error;
@@ -83,10 +84,34 @@ export const roomService = {
     }
   },
 
-  // Delete room
+  // Check if room can be deleted
+  async canDeleteRoom(roomId) {
+    try {
+      const { data, error } = await supabase.rpc("can_delete_room", {
+        room_id: roomId,
+      });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error("Error checking if room can be deleted:", error);
+      throw error;
+    }
+  },
+
+  // Delete room (soft delete)
   async deleteRoom(roomId) {
     try {
-      const { error } = await supabase.from("rooms").delete().eq("id", roomId);
+      // 1. Validate before delete
+      const canDelete = await this.canDeleteRoom(roomId);
+      if (!canDelete.canDelete) {
+        throw new Error(canDelete.reason || "Không thể xóa phòng này");
+      }
+
+      // 2. Soft delete: sử dụng RPC function để bypass RLS issues
+      const { data, error } = await supabase.rpc("soft_delete_room", {
+        p_room_id: roomId,
+      });
 
       if (error) throw error;
       return true;
@@ -96,13 +121,14 @@ export const roomService = {
     }
   },
 
-  // Get room statistics
+  // Get room statistics (exclude deleted)
   async getRoomStats(propertyId) {
     try {
       const { data: rooms, error } = await supabase
         .from("rooms")
         .select("id, status, capacity, current_occupants")
-        .eq("property_id", propertyId);
+        .eq("property_id", propertyId)
+        .is("deleted_at", null); // Only count non-deleted rooms
 
       if (error) throw error;
 
@@ -159,7 +185,7 @@ export const roomService = {
   // Cleanup rooms that are marked as OCCUPIED but have no active tenants
   async cleanupOrphanedRooms(propertyId) {
     try {
-      // Get all rooms marked as OCCUPIED
+      // Get all rooms marked as OCCUPIED (including those with no tenants)
       const { data: occupiedRooms, error: roomsError } = await supabase
         .from("rooms")
         .select(
@@ -167,24 +193,31 @@ export const roomService = {
           id,
           code,
           status,
-          tenants!inner(
+          current_occupants,
+          tenants(
             id,
-            is_active
+            is_active,
+            active_in_room
           )
         `
         )
         .eq("property_id", propertyId)
-        .eq("status", "OCCUPIED");
+        .eq("status", "OCCUPIED")
+        .is("deleted_at", null); // Only get non-deleted rooms
 
       if (roomsError) throw roomsError;
 
-      // Find rooms with no active tenants
-      const orphanedRooms = occupiedRooms.filter(
-        (room) =>
-          !room.tenants ||
-          room.tenants.length === 0 ||
-          !room.tenants.some((tenant) => tenant.is_active)
-      );
+      // Find rooms with no active tenants or where current_occupants doesn't match
+      const orphanedRooms = occupiedRooms.filter((room) => {
+        const activeTenants = room.tenants?.filter(
+          (tenant) => tenant.is_active && tenant.active_in_room
+        ) || [];
+        
+        return (
+          activeTenants.length === 0 ||
+          room.current_occupants !== activeTenants.length
+        );
+      });
 
       // Update orphaned rooms to VACANT
       if (orphanedRooms.length > 0) {

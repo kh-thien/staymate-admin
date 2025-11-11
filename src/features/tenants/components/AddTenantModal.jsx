@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
+import { useAuth } from "../../auth/context/useAuth";
 
 const AddTenantModal = ({ isOpen, onClose, onSubmit }) => {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     fullname: "",
     birthdate: "",
@@ -11,7 +13,6 @@ const AddTenantModal = ({ isOpen, onClose, onSubmit }) => {
     occupation: "",
     id_number: "",
     note: "",
-    move_in_date: new Date().toISOString().split("T")[0],
     room_id: "",
     emergency_contact_name: "",
     emergency_contact_phone: "",
@@ -21,6 +22,7 @@ const AddTenantModal = ({ isOpen, onClose, onSubmit }) => {
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -35,7 +37,6 @@ const AddTenantModal = ({ isOpen, onClose, onSubmit }) => {
         occupation: "",
         id_number: "",
         note: "",
-        move_in_date: new Date().toISOString().split("T")[0],
         room_id: "",
         emergency_contact_name: "",
         emergency_contact_phone: "",
@@ -43,6 +44,7 @@ const AddTenantModal = ({ isOpen, onClose, onSubmit }) => {
         account_status: "PENDING",
       });
       setErrors({});
+      setSubmitError(null); // Clear error when modal opens
     }
   }, [isOpen]);
 
@@ -74,9 +76,6 @@ const AddTenantModal = ({ isOpen, onClose, onSubmit }) => {
       newErrors.email = "Email không hợp lệ";
     }
 
-    if (!formData.move_in_date) {
-      newErrors.move_in_date = "Ngày chuyển vào là bắt buộc";
-    }
 
     if (
       formData.birthdate &&
@@ -95,7 +94,10 @@ const AddTenantModal = ({ isOpen, onClose, onSubmit }) => {
     if (!validateForm()) return;
 
     setLoading(true);
+    setSubmitError(null); // Clear previous error
+    
     try {
+      if (!user) throw new Error("User not authenticated");
       // Process form data to handle empty date fields
       const processedData = {
         ...formData,
@@ -107,11 +109,33 @@ const AddTenantModal = ({ isOpen, onClose, onSubmit }) => {
         occupation: formData.occupation || null,
         id_number: formData.id_number || null,
         note: formData.note || null,
+        created_by: user.id,
       };
 
       await onSubmit(processedData);
+      // Chỉ đóng modal khi thành công (onSubmit không throw error)
+      onClose();
     } catch (error) {
       console.error("Error creating tenant:", error);
+      
+      // Hiển thị error message rõ ràng
+      let errorMessage = "Có lỗi xảy ra khi tạo người thuê";
+      
+      if (error?.code === '23505') {
+        if (error?.message?.includes('phone')) {
+          errorMessage = "Số điện thoại này đã được sử dụng trong danh sách người thuê của bạn. Vui lòng nhập số điện thoại khác.";
+        } else if (error?.message?.includes('id_number')) {
+          errorMessage = "CMND/CCCD này đã được sử dụng trong danh sách người thuê của bạn. Vui lòng nhập số CMND/CCCD khác.";
+        } else {
+          errorMessage = "Dữ liệu đã tồn tại trong hệ thống. Vui lòng kiểm tra lại.";
+        }
+      } else if (error?.code === '42501') {
+        errorMessage = "Bạn không có quyền thực hiện thao tác này. Vui lòng liên hệ quản trị viên.";
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      setSubmitError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -154,6 +178,52 @@ const AddTenantModal = ({ isOpen, onClose, onSubmit }) => {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6">
+          {/* Error Message */}
+          {submitError && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-start">
+                <svg
+                  className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-red-800">
+                    Lỗi khi tạo người thuê
+                  </h3>
+                  <p className="mt-1 text-sm text-red-700">{submitError}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSubmitError(null)}
+                  className="ml-4 flex-shrink-0 text-red-600 hover:text-red-800"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-6">
             {/* Basic Info */}
             <div>
@@ -307,25 +377,6 @@ const AddTenantModal = ({ isOpen, onClose, onSubmit }) => {
                   />
                 </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ngày chuyển vào <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="move_in_date"
-                    value={formData.move_in_date}
-                    onChange={handleChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.move_in_date ? "border-red-500" : "border-gray-300"
-                    }`}
-                  />
-                  {errors.move_in_date && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors.move_in_date}
-                    </p>
-                  )}
-                </div>
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">

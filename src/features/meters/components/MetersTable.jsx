@@ -1,11 +1,18 @@
-import React from "react";
+import React, { useMemo } from "react";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
+  flexRender,
+  createColumnHelper,
+} from "@tanstack/react-table";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import {
   BoltIcon,
   WrenchScrewdriverIcon,
-  ExclamationTriangleIcon,
-  CheckCircleIcon,
   ClockIcon,
 } from "@heroicons/react/24/outline";
 
@@ -54,12 +61,155 @@ const MetersTable = ({
     return colorClasses[serviceType] || colorClasses.OTHER;
   };
 
-  const needsReading = (lastReadDate) => {
-    if (!lastReadDate) return true;
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    return new Date(lastReadDate) < thirtyDaysAgo;
-  };
+  const columnHelper = createColumnHelper();
+
+  const columns = useMemo(
+    () => [
+      columnHelper.accessor("meter_code", {
+        header: "Mã đồng hồ",
+        cell: ({ row }) => (
+          <div className="text-sm font-medium text-gray-900">
+            {row.original.meter_code || "N/A"}
+          </div>
+        ),
+      }),
+      columnHelper.accessor("services.name", {
+        header: "Dịch vụ",
+        cell: ({ row }) => (
+          <div className="flex items-center">
+            <div className="flex-shrink-0 mr-2">
+              {getServiceIcon(row.original.services?.service_type)}
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-900">
+                {row.original.services?.name}
+              </div>
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getServiceTypeColor(
+                  row.original.services?.service_type
+                )}`}
+              >
+                {getServiceTypeLabel(row.original.services?.service_type)}
+              </span>
+            </div>
+          </div>
+        ),
+      }),
+      columnHelper.display({
+        id: "room",
+        header: "Phòng",
+        cell: ({ row }) => (
+          <div>
+            <div className="text-sm font-medium text-gray-900">
+              {row.original.rooms?.code} - {row.original.rooms?.name}
+            </div>
+            <div className="text-sm text-gray-900 font-medium">
+              {row.original.rooms?.properties?.name}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              {[
+                row.original.rooms?.properties?.address,
+                row.original.rooms?.properties?.ward,
+                row.original.rooms?.properties?.city,
+              ]
+                .filter(Boolean)
+                .join(", ")}
+            </div>
+          </div>
+        ),
+      }),
+      columnHelper.accessor("last_read", {
+        header: "Chỉ số cuối",
+        cell: ({ row }) => (
+          <div>
+            <div className="text-sm font-medium text-gray-900">
+              {row.original.last_read?.toLocaleString() || "N/A"}
+            </div>
+            {row.original.services?.unit && (
+              <div className="text-sm text-gray-500">
+                {row.original.services.unit}
+              </div>
+            )}
+          </div>
+        ),
+      }),
+      columnHelper.accessor("last_read_date", {
+        header: "Ngày đọc",
+        cell: ({ row }) => (
+          <div className="text-sm text-gray-900">
+            {row.original.last_read_date
+              ? format(new Date(row.original.last_read_date), "dd/MM/yyyy", {
+                  locale: vi,
+                })
+              : "Chưa có"}
+          </div>
+        ),
+      }),
+      columnHelper.accessor("created_at", {
+        header: "Ngày tạo",
+        cell: ({ row }) => (
+          <div className="text-sm text-gray-900">
+            {row.original.created_at
+              ? format(
+                  new Date(row.original.created_at),
+                  "dd/MM/yyyy HH:mm",
+                  {
+                    locale: vi,
+                  }
+                )
+              : "N/A"}
+          </div>
+        ),
+      }),
+      columnHelper.display({
+        id: "actions",
+        header: "Thao tác",
+        cell: ({ row }) => (
+          <div className="flex items-center justify-end space-x-2">
+            <button
+              onClick={() => onView(row.original)}
+              className="text-blue-600 hover:text-blue-900 text-sm font-medium"
+            >
+              Xem
+            </button>
+            <button
+              onClick={() => onEdit(row.original)}
+              className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
+            >
+              Sửa
+            </button>
+            <button
+              onClick={() => onUpdateReading(row.original)}
+              className="text-green-600 hover:text-green-900 text-sm font-medium"
+            >
+              Đọc chỉ số
+            </button>
+            <button
+              onClick={() => onDelete(row.original)}
+              className="text-red-600 hover:text-red-900 text-sm font-medium"
+            >
+              Xóa
+            </button>
+          </div>
+        ),
+      }),
+    ],
+    [columnHelper, onView, onEdit, onDelete, onUpdateReading]
+  );
+
+  const table = useReactTable({
+    data: meters,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    initialState: {
+      pagination: {
+        pageSize: 10,
+      },
+    },
+  });
 
   if (loading) {
     return (
@@ -94,157 +244,131 @@ const MetersTable = ({
 
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Mã đồng hồ
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Dịch vụ
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Phòng
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Chỉ số cuối
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Ngày đọc
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Trạng thái
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Thao tác
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {meters.map((meter, index) => (
-              <tr
-                key={meter.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
-                className="hover:bg-gray-50"
-              >
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">
-                    {meter.meter_code || "N/A"}
-                  </div>
-                </td>
-
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0 mr-2">
-                      {getServiceIcon(meter.services?.service_type)}
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {meter.services?.name}
-                      </div>
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getServiceTypeColor(
-                          meter.services?.service_type
-                        )}`}
-                      >
-                        {getServiceTypeLabel(meter.services?.service_type)}
-                      </span>
-                    </div>
-                  </div>
-                </td>
-
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">
-                      {meter.rooms?.code} - {meter.rooms?.name}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {meter.rooms?.properties?.name}
-                    </div>
-                  </div>
-                </td>
-
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">
-                    {meter.last_read?.toLocaleString() || "N/A"}
-                  </div>
-                  {meter.services?.unit && (
-                    <div className="text-sm text-gray-500">
-                      {meter.services.unit}
-                    </div>
-                  )}
-                </td>
-
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">
-                    {meter.last_read_date
-                      ? format(new Date(meter.last_read_date), "dd/MM/yyyy", {
-                          locale: vi,
-                        })
-                      : "Chưa có"}
-                  </div>
-                </td>
-
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {needsReading(meter.last_read_date) ? (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                      <ExclamationTriangleIcon className="h-3 w-3 mr-1" />
-                      Cần đọc
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      <CheckCircleIcon className="h-3 w-3 mr-1" />
-                      Đã đọc
-                    </span>
-                  )}
-                </td>
-
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div className="flex items-center justify-end space-x-2">
-                    <button
-                      onClick={() => onView(meter)}
-                      className="text-blue-600 hover:text-blue-900"
-                    >
-                      Xem
-                    </button>
-                    <button
-                      onClick={() => onEdit(meter)}
-                      className="text-indigo-600 hover:text-indigo-900"
-                    >
-                      Sửa
-                    </button>
-                    {needsReading(meter.last_read_date) && (
-                      <button
-                        onClick={() => onUpdateReading(meter)}
-                        className="text-green-600 hover:text-green-900"
-                      >
-                        Đọc chỉ số
-                      </button>
-                    )}
-                    <button
-                      onClick={() => onDelete(meter)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      Xóa
-                    </button>
-                  </div>
-                </td>
+          <thead className="bg-gray-50/50">
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th
+                    key={header.id}
+                    className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                  </th>
+                ))}
               </tr>
             ))}
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-100">
+            {table.getRowModel().rows.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length} className="text-center py-12">
+                  <BoltIcon className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">
+                    Không có đồng hồ
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Bắt đầu bằng cách thêm đồng hồ mới.
+                  </p>
+                </td>
+              </tr>
+            ) : (
+              table.getRowModel().rows.map((row) => (
+                <tr key={row.id} className="hover:bg-gray-50/50 transition-colors">
+                  {row.getVisibleCells().map((cell) => (
+                    <td
+                      key={cell.id}
+                      className="px-6 py-4 text-sm"
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
-      {meters.length === 0 && !loading && (
-        <div className="text-center py-12">
-          <BoltIcon className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">
-            Không có đồng hồ
-          </h3>
-          <p className="mt-1 text-sm text-gray-500">
-            Bắt đầu bằng cách thêm đồng hồ mới.
-          </p>
+      {/* Pagination - TailAdmin style */}
+      {table.getRowModel().rows.length > 0 && (
+        <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200">
+          <div className="flex-1 flex items-center justify-between">
+            <p className="text-xs text-gray-600">
+              Hiển thị{" "}
+              <span className="font-semibold text-gray-900">
+                {table.getState().pagination.pageIndex *
+                  table.getState().pagination.pageSize +
+                  1}
+              </span>{" "}
+              đến{" "}
+              <span className="font-semibold text-gray-900">
+                {Math.min(
+                  (table.getState().pagination.pageIndex + 1) *
+                    table.getState().pagination.pageSize,
+                  table.getFilteredRowModel().rows.length
+                )}
+              </span>{" "}
+              trong{" "}
+              <span className="font-semibold text-gray-900">
+                {table.getFilteredRowModel().rows.length}
+              </span>{" "}
+              kết quả
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+                className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+                Trước
+              </button>
+              <span className="px-3 py-1.5 text-xs font-medium text-gray-700">
+                Trang {table.getState().pagination.pageIndex + 1} /{" "}
+                {table.getPageCount()}
+              </span>
+              <button
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+                className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+              >
+                Sau
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -1,66 +1,63 @@
 import React, { useState } from "react";
 import {
-  WrenchScrewdriverIcon,
   ExclamationTriangleIcon,
-  CheckCircleIcon,
-  ClockIcon,
-  XMarkIcon,
-  CurrencyDollarIcon,
+  Squares2X2Icon,
+  TableCellsIcon,
 } from "@heroicons/react/24/outline";
 import { useMaintenance } from "../hooks/useMaintenance";
+import { MaintenanceKanban } from "../components/MaintenanceKanban";
 import MaintenanceTable from "../components/MaintenanceTable";
+import MaintenanceFormModal from "../components/MaintenanceFormModal";
+import MaintenanceDetailModal from "../components/MaintenanceDetailModal";
+import CompleteMaintenanceModal from "../components/CompleteMaintenanceModal";
+import PendingMaintenanceQueue from "../components/PendingMaintenanceQueue";
+import { Pagination } from "../../../core/components/ui";
 
 const Maintenance = () => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [roomFilter, setRoomFilter] = useState("all");
-  const [propertyFilter, setPropertyFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("created_at");
-  const [sortOrder, setSortOrder] = useState("desc");
+  const [viewMode, setViewMode] = useState("kanban"); // "kanban" or "table"
 
-  const filters = {
-    search: searchTerm,
-    status: statusFilter,
-    room: roomFilter,
-    property: propertyFilter,
-    sortBy,
-    sortOrder,
-  };
+  // Modal states
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+  const [completingMaintenance, setCompletingMaintenance] = useState(null);
+  const [editingMaintenance, setEditingMaintenance] = useState(null);
+  const [viewingMaintenance, setViewingMaintenance] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
 
   const {
     maintenanceRequests,
     loading,
     error,
-    stats,
+    createMaintenanceRequest,
+    updateMaintenanceRequest,
     deleteMaintenanceRequest,
     updateMaintenanceStatus,
     refreshMaintenanceRequests,
-  } = useMaintenance(filters);
-
-  const statusOptions = [
-    { value: "all", label: "Tất cả trạng thái" },
-    { value: "OPEN", label: "Mở" },
-    { value: "IN_PROGRESS", label: "Đang xử lý" },
-    { value: "COMPLETED", label: "Hoàn thành" },
-    { value: "CANCELLED", label: "Đã hủy" },
-  ];
+  } = useMaintenance();
 
   const handleAddMaintenance = () => {
-    alert("Chức năng thêm yêu cầu bảo trì sẽ được phát triển sau");
+    setEditingMaintenance(null);
+    setIsFormModalOpen(true);
   };
 
   const handleViewMaintenance = (request) => {
-    alert(`Xem yêu cầu bảo trì: ${request.description}`);
+    setViewingMaintenance(request);
+    setIsDetailModalOpen(true);
   };
 
   const handleEditMaintenance = (request) => {
-    alert(`Sửa yêu cầu bảo trì: ${request.description}`);
+    setEditingMaintenance(request);
+    setIsFormModalOpen(true);
   };
 
   const handleDeleteMaintenance = async (request) => {
     if (
       window.confirm(
-        `Bạn có chắc muốn xóa yêu cầu bảo trì "${request.description}"?`
+        `Bạn có chắc muốn xóa yêu cầu bảo trì "${
+          request.title || request.description
+        }"?`
       )
     ) {
       try {
@@ -73,12 +70,48 @@ const Maintenance = () => {
   };
 
   const handleUpdateStatus = async (request, newStatus) => {
+    // Check if completing and cost is missing
+    if (newStatus === "COMPLETED" && (!request.cost || request.cost <= 0)) {
+      setCompletingMaintenance(request);
+      setIsCompleteModalOpen(true);
+      return;
+    }
+
     try {
       await updateMaintenanceStatus(request.id, newStatus);
-      alert(`✅ Đã cập nhật trạng thái thành "${newStatus}"!`);
+      alert(`✅ Đã cập nhật trạng thái thành công!`);
     } catch (error) {
       alert(`❌ Lỗi khi cập nhật trạng thái: ${error.message}`);
     }
+  };
+
+  const handleCompleteMaintenance = async (cost) => {
+    if (!completingMaintenance) return;
+
+    try {
+      await updateMaintenanceStatus(completingMaintenance.id, "COMPLETED", {
+        cost: cost,
+      });
+      alert(`✅ Đã hoàn thành bảo trì với chi phí ${cost.toLocaleString("vi-VN")} VNĐ!`);
+      setIsCompleteModalOpen(false);
+      setCompletingMaintenance(null);
+    } catch (error) {
+      throw error; // Let modal handle the error
+    }
+  };
+
+  const handleFormSubmit = async (formData) => {
+    if (editingMaintenance) {
+      // Update existing maintenance
+      await updateMaintenanceRequest(editingMaintenance.id, formData);
+      alert("✅ Đã cập nhật yêu cầu bảo trì thành công!");
+    } else {
+      // Create new maintenance
+      await createMaintenanceRequest(formData);
+      alert("✅ Đã tạo yêu cầu bảo trì thành công!");
+    }
+    setIsFormModalOpen(false);
+    setEditingMaintenance(null);
   };
 
   if (error) {
@@ -118,222 +151,147 @@ const Maintenance = () => {
             Theo dõi và quản lý các yêu cầu bảo trì
           </p>
         </div>
-        <button
-          onClick={handleAddMaintenance}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-        >
-          + Tạo yêu cầu bảo trì
-        </button>
-      </div>
-
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
-        <div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
-        >
-          <div className="flex items-center">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <WrenchScrewdriverIcon className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Tổng số</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-            </div>
+        <div className="flex items-center gap-3">
+          {/* View Toggle */}
+          <div className="flex bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode("kanban")}
+              className={`px-4 py-2 rounded-md flex items-center gap-2 transition-colors ${
+                viewMode === "kanban"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              <Squares2X2Icon className="w-5 h-5" />
+              <span className="font-medium">Kanban</span>
+            </button>
+            <button
+              onClick={() => setViewMode("table")}
+              className={`px-4 py-2 rounded-md flex items-center gap-2 transition-colors ${
+                viewMode === "table"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              <TableCellsIcon className="w-5 h-5" />
+              <span className="font-medium">Bảng</span>
+            </button>
           </div>
-        </div>
 
-        <div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
-        >
-          <div className="flex items-center">
-            <div className="p-3 bg-yellow-100 rounded-lg">
-              <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Mở</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.open}</p>
-            </div>
-          </div>
-        </div>
-
-        <div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
-        >
-          <div className="flex items-center">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <ClockIcon className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Đang xử lý</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {stats.inProgress}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
-        >
-          <div className="flex items-center">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <CheckCircleIcon className="h-6 w-6 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Hoàn thành</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {stats.completed}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-          className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
-        >
-          <div className="flex items-center">
-            <div className="p-3 bg-red-100 rounded-lg">
-              <XMarkIcon className="h-6 w-6 text-red-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Đã hủy</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {stats.cancelled}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.6 }}
-          className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
-        >
-          <div className="flex items-center">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <CurrencyDollarIcon className="h-6 w-6 text-purple-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Tổng chi phí</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {stats.totalCost.toLocaleString()} VNĐ
-              </p>
-            </div>
-          </div>
+          <button
+            onClick={handleAddMaintenance}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            + Tạo yêu cầu bảo trì
+          </button>
         </div>
       </div>
 
-      {/* Filters */}
-      <div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-        className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
-      >
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Bộ lọc</h3>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Tìm kiếm
-            </label>
-            <input
-              type="text"
-              placeholder="Mô tả, phòng..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
+      {/* 🔔 Pending Maintenance Queue - Hộp chờ yêu cầu bảo trì */}
+      <PendingMaintenanceQueue 
+        onApproveSuccess={refreshMaintenanceRequests}
+      />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Trạng thái
-            </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              {statusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+      {/* Maintenance View - Kanban or Table */}
+      {viewMode === "kanban" ? (
+        <MaintenanceKanban
+          maintenanceRequests={maintenanceRequests}
+          onCardClick={handleViewMaintenance}
+          onStatusChange={async (id, newStatus) => {
+            // � OPTIMISTIC UPDATE: Call service without await
+            // UI updates immediately via useMaintenance hook
+            // Find the maintenance item
+            const maintenance = maintenanceRequests.find((m) => m.id === id);
+            
+            // Check if completing and cost is missing
+            if (newStatus === "COMPLETED" && maintenance && (!maintenance.cost || maintenance.cost <= 0)) {
+              setCompletingMaintenance(maintenance);
+              setIsCompleteModalOpen(true);
+              return;
+            }
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phòng
-            </label>
-            <select
-              value={roomFilter}
-              onChange={(e) => setRoomFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">Tất cả phòng</option>
-            </select>
-          </div>
+            updateMaintenanceStatus(id, newStatus).catch((error) => {
+              console.error("❌ Status update failed:", error);
+              // Refresh to revert on error
+              refreshMaintenanceRequests();
+              alert(`❌ Lỗi khi cập nhật trạng thái: ${error.message}`);
+            });
+          }}
+        />
+      ) : (
+        <>
+          {(() => {
+            // Pagination logic for table view
+            const totalPages = Math.ceil(maintenanceRequests.length / itemsPerPage);
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const paginatedRequests = maintenanceRequests.slice(startIndex, endIndex);
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Bất động sản
-            </label>
-            <select
-              value={propertyFilter}
-              onChange={(e) => setPropertyFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">Tất cả bất động sản</option>
-            </select>
-          </div>
+            return (
+              <>
+                <MaintenanceTable
+                  maintenanceRequests={paginatedRequests}
+                  onView={handleViewMaintenance}
+                  onEdit={handleEditMaintenance}
+                  onDelete={handleDeleteMaintenance}
+                  onUpdateStatus={handleUpdateStatus}
+                  loading={loading}
+                />
+                {maintenanceRequests.length > itemsPerPage && (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={maintenanceRequests.length}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                    startIndex={startIndex}
+                    endIndex={endIndex - 1}
+                  />
+                )}
+              </>
+            );
+          })()}
+        </>
+      )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Sắp xếp
-            </label>
-            <select
-              value={`${sortBy}-${sortOrder}`}
-              onChange={(e) => {
-                const [field, order] = e.target.value.split("-");
-                setSortBy(field);
-                setSortOrder(order);
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="created_at-desc">Mới nhất</option>
-              <option value="created_at-asc">Cũ nhất</option>
-              <option value="status-asc">Trạng thái A-Z</option>
-              <option value="status-desc">Trạng thái Z-A</option>
-            </select>
-          </div>
-        </div>
-      </div>
+      {/* Form Modal */}
+      <MaintenanceFormModal
+        isOpen={isFormModalOpen}
+        onClose={() => {
+          setIsFormModalOpen(false);
+          setEditingMaintenance(null);
+        }}
+        onSubmit={handleFormSubmit}
+        editData={editingMaintenance}
+      />
 
-      {/* Maintenance Table */}
-      <MaintenanceTable
-        maintenanceRequests={maintenanceRequests}
-        onView={handleViewMaintenance}
-        onEdit={handleEditMaintenance}
-        onDelete={handleDeleteMaintenance}
-        onUpdateStatus={handleUpdateStatus}
-        loading={loading}
+      {/* Detail Modal */}
+      <MaintenanceDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => {
+          setIsDetailModalOpen(false);
+          setViewingMaintenance(null);
+        }}
+        maintenance={viewingMaintenance}
+        onEdit={(maintenance) => {
+          // Close detail modal
+          setIsDetailModalOpen(false);
+          setViewingMaintenance(null);
+          // Open edit form
+          setEditingMaintenance(maintenance);
+          setIsFormModalOpen(true);
+        }}
+      />
+
+      {/* Complete Maintenance Modal */}
+      <CompleteMaintenanceModal
+        isOpen={isCompleteModalOpen}
+        onClose={() => {
+          setIsCompleteModalOpen(false);
+          setCompletingMaintenance(null);
+        }}
+        maintenance={completingMaintenance}
+        onComplete={handleCompleteMaintenance}
       />
     </div>
   );

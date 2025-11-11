@@ -32,10 +32,15 @@ export default function SimpleForgotPasswordForm() {
     }
 
     try {
-      // Smooth UX delay
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      await AuthService.resetPassword(email);
-      setIsSubmitted(true);
+      const result = await AuthService.resetPassword(email);
+      
+      if (result.success) {
+        setIsSubmitted(true);
+      } else {
+        // Handle error from service
+        const errorMessage = handleApiError(result.error);
+        setErrors({ submit: errorMessage });
+      }
     } catch (error) {
       console.error("Error sending reset email:", error);
       const errorMessage = handleApiError(error);

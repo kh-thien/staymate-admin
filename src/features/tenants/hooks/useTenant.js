@@ -56,7 +56,6 @@ export const useTenant = (tenantId) => {
           ? {
               ...prev,
               is_active: false,
-              move_out_date: new Date().toISOString().split("T")[0],
             }
           : null
       );

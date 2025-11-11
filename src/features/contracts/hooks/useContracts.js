@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { contractService } from "../services/contractService";
 
 export const useContracts = (filters = {}) => {
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const isInitialMount = useRef(true);
 
   const fetchContracts = useCallback(async () => {
     try {
@@ -17,6 +18,7 @@ export const useContracts = (filters = {}) => {
       console.error("Error fetching contracts:", err);
     } finally {
       setLoading(false);
+      isInitialMount.current = false;
     }
   }, [
     filters.status,
@@ -35,6 +37,9 @@ export const useContracts = (filters = {}) => {
     fetchContracts();
   }, [fetchContracts]);
 
+  // Determine if this is initial load
+  const initialLoading = loading && isInitialMount.current;
+
   const createContract = async (contractData) => {
     try {
       const newContract = await contractService.createContract(contractData);
@@ -48,10 +53,9 @@ export const useContracts = (filters = {}) => {
 
   const updateContract = async (contractId, updateData) => {
     try {
-      const updatedContract = await contractService.updateContract(
-        contractId,
-        updateData
-      );
+      await contractService.updateContract(contractId, updateData);
+      // Fetch updated contract with full data and update state
+      const updatedContract = await contractService.getContractById(contractId);
       setContracts((prev) =>
         prev.map((contract) =>
           contract.id === contractId ? updatedContract : contract
@@ -84,16 +88,15 @@ export const useContracts = (filters = {}) => {
 
   const terminateContract = async (contractId, terminationData = {}) => {
     try {
-      const terminatedContract = await contractService.terminateContract(
-        contractId,
-        terminationData
-      );
+      await contractService.terminateContract(contractId, terminationData);
+      // Fetch updated contract with full data and update state
+      const updatedContract = await contractService.getContractById(contractId);
       setContracts((prev) =>
         prev.map((contract) =>
-          contract.id === contractId ? terminatedContract : contract
+          contract.id === contractId ? updatedContract : contract
         )
       );
-      return terminatedContract;
+      return updatedContract;
     } catch (err) {
       setError(err.message);
       throw err;
@@ -102,16 +105,15 @@ export const useContracts = (filters = {}) => {
 
   const extendContract = async (contractId, extensionData) => {
     try {
-      const extendedContract = await contractService.extendContract(
-        contractId,
-        extensionData
-      );
+      await contractService.extendContract(contractId, extensionData);
+      // Fetch updated contract with full data and update state
+      const updatedContract = await contractService.getContractById(contractId);
       setContracts((prev) =>
         prev.map((contract) =>
-          contract.id === contractId ? extendedContract : contract
+          contract.id === contractId ? updatedContract : contract
         )
       );
-      return extendedContract;
+      return updatedContract;
     } catch (err) {
       setError(err.message);
       throw err;
@@ -170,6 +172,7 @@ export const useContracts = (filters = {}) => {
   return {
     contracts,
     loading,
+    initialLoading,
     error,
     createContract,
     updateContract,

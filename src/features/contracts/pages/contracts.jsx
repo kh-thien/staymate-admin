@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useContracts } from "../hooks/useContracts";
 import { contractService } from "../services/contractService";
 import ContractsTable from "../components/ContractsTable";
@@ -18,6 +18,16 @@ const Contracts = () => {
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("desc");
 
+  // Statistics state (không bị ảnh hưởng bởi filter)
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    expired: 0,
+    draft: 0,
+    terminated: 0,
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
+
   // Modal states
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -29,6 +39,7 @@ const Contracts = () => {
   const {
     contracts,
     loading,
+    initialLoading,
     error,
     updateContract,
     deleteContract,
@@ -43,6 +54,33 @@ const Contracts = () => {
     sortBy,
     sortOrder,
   });
+
+  // Fetch statistics (không bị ảnh hưởng bởi filter)
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setStatsLoading(true);
+        const statistics = await contractService.getContractStats();
+        setStats(statistics);
+      } catch (err) {
+        console.error("Error fetching contract stats:", err);
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []); // Chỉ fetch một lần khi component mount
+
+  // Refresh stats sau khi có thay đổi (create/update/delete/terminate/extend)
+  const refreshStats = async () => {
+    try {
+      const statistics = await contractService.getContractStats();
+      setStats(statistics);
+    } catch (err) {
+      console.error("Error refreshing contract stats:", err);
+    }
+  };
 
   // Handlers
   const handleAddContract = () => {
@@ -80,7 +118,7 @@ const Contracts = () => {
 
       if (window.confirm(confirmMessage)) {
         await deleteContract(contract.id);
-        // Data will be refreshed automatically by deleteContract
+        await refreshStats(); // Refresh stats sau khi delete
       }
     } catch (error) {
       console.error("Error deleting contract:", error);
@@ -88,9 +126,29 @@ const Contracts = () => {
     }
   };
 
-  const handleTerminateContract = (contract) => {
-    setSelectedContract(contract);
-    setShowTerminateModal(true);
+  const handleTerminateContract = async (contract) => {
+    try {
+      // Kiểm tra hóa đơn chưa thanh toán trước khi mở modal
+      const unpaidBillsCheck = await contractService.checkUnpaidBillsForTermination(
+        contract.id
+      );
+
+      if (unpaidBillsCheck.hasUnpaidBills) {
+        // Hiển thị cảnh báo với thông tin chi tiết
+        const message = `⚠️ Cảnh báo: Hợp đồng này còn ${unpaidBillsCheck.unpaidBillsCount} hóa đơn chưa thanh toán.\n\nTổng số tiền: ${unpaidBillsCheck.unpaidAmount.toLocaleString("vi-VN")} VNĐ\n\nBạn có muốn tiếp tục kết thúc hợp đồng không?`;
+        const shouldContinue = window.confirm(message);
+        if (!shouldContinue) {
+          return; // Người dùng không muốn tiếp tục
+        }
+      }
+
+      // Mở modal kết thúc hợp đồng
+      setSelectedContract(contract);
+      setShowTerminateModal(true);
+    } catch (error) {
+      console.error("Error checking unpaid bills:", error);
+      alert(`❌ Lỗi khi kiểm tra hóa đơn: ${error.message}\n\nVui lòng thử lại hoặc kiểm tra lại hợp đồng.`);
+    }
   };
 
   const handleExtendContract = (contract) => {
@@ -114,6 +172,7 @@ const Contracts = () => {
   const handleEditSubmit = async (formData) => {
     try {
       await updateContract(selectedContract.id, formData);
+      await refreshStats(); // Refresh stats sau khi update
       alert("✅ Đã cập nhật hợp đồng thành công!");
       setShowEditModal(false);
       setSelectedContract(null);
@@ -125,7 +184,14 @@ const Contracts = () => {
 
   const handleTerminateSubmit = async (formData) => {
     try {
-      await terminateContract(selectedContract.id, formData);
+      // Map notice -> note và reason (tiếng Việt) -> enum (tiếng Anh)
+      const terminationData = {
+        endDate: formData.endDate,
+        reason: formData.reason, // Sẽ được map sang enum trong service
+        note: formData.notice || null, // Map notice -> note
+      };
+      await terminateContract(selectedContract.id, terminationData);
+      await refreshStats(); // Refresh stats sau khi terminate
       alert("✅ Đã kết thúc hợp đồng thành công!");
       setShowTerminateModal(false);
       setSelectedContract(null);
@@ -138,6 +204,7 @@ const Contracts = () => {
   const handleExtendSubmit = async (formData) => {
     try {
       await extendContract(selectedContract.id, formData);
+      await refreshStats(); // Refresh stats sau khi extend
       alert("✅ Đã gia hạn hợp đồng thành công!");
       setShowExtendModal(false);
       setSelectedContract(null);
@@ -147,7 +214,8 @@ const Contracts = () => {
     }
   };
 
-  if (loading) {
+  // Chỉ hiển thị loading spinner toàn trang khi initial load (chưa có data)
+  if (initialLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -155,7 +223,7 @@ const Contracts = () => {
     );
   }
 
-  if (error) {
+  if (error && contracts.length === 0) {
     return (
       <div className="text-center py-12">
         <p className="text-red-600 mb-4">Lỗi khi tải dữ liệu: {error}</p>
@@ -170,34 +238,43 @@ const Contracts = () => {
   }
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
+    <div className="p-4 sm:p-6">
+      {/* Header - TailAdmin style */}
+      <div className="mb-5">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-gray-900">
               Quản lý Hợp đồng
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-sm text-gray-600 mt-0.5">
               Quản lý hợp đồng thuê phòng và thanh toán
             </p>
           </div>
           <button
             onClick={handleAddContract}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-medium text-sm shadow-sm hover:shadow-md flex items-center gap-2"
           >
-            + Thêm hợp đồng
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Thêm hợp đồng
           </button>
         </div>
       </div>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-3 bg-blue-100 rounded-lg">
+      {/* Statistics - TailAdmin compact style */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-5">
+        <div className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Tổng số</p>
+              <p className="text-xl font-bold text-gray-900">
+                {statsLoading ? "..." : stats.total}
+              </p>
+            </div>
+            <div className="p-2.5 bg-blue-50 rounded-lg">
               <svg
-                className="w-6 h-6 text-blue-600"
+                className="w-5 h-5 text-blue-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -210,20 +287,20 @@ const Contracts = () => {
                 />
               </svg>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Tổng số</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {contracts.length}
-              </p>
-            </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-3 bg-green-100 rounded-lg">
+        <div className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Đang hoạt động</p>
+              <p className="text-xl font-bold text-gray-900">
+                {statsLoading ? "..." : stats.active}
+              </p>
+            </div>
+            <div className="p-2.5 bg-green-50 rounded-lg">
               <svg
-                className="w-6 h-6 text-green-600"
+                className="w-5 h-5 text-green-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -236,22 +313,20 @@ const Contracts = () => {
                 />
               </svg>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">
-                Đang hoạt động
-              </p>
-              <p className="text-2xl font-bold text-gray-900">
-                {contracts.filter((c) => c.status === "ACTIVE").length}
-              </p>
-            </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-3 bg-red-100 rounded-lg">
+        <div className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Đã hết hạn</p>
+              <p className="text-xl font-bold text-gray-900">
+                {statsLoading ? "..." : stats.expired}
+              </p>
+            </div>
+            <div className="p-2.5 bg-red-50 rounded-lg">
               <svg
-                className="w-6 h-6 text-red-600"
+                className="w-5 h-5 text-red-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -264,20 +339,20 @@ const Contracts = () => {
                 />
               </svg>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Đã hết hạn</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {contracts.filter((c) => c.status === "EXPIRED").length}
-              </p>
-            </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-3 bg-yellow-100 rounded-lg">
+        <div className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Bản nháp</p>
+              <p className="text-xl font-bold text-gray-900">
+                {statsLoading ? "..." : stats.draft}
+              </p>
+            </div>
+            <div className="p-2.5 bg-yellow-50 rounded-lg">
               <svg
-                className="w-6 h-6 text-yellow-600"
+                className="w-5 h-5 text-yellow-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -290,20 +365,20 @@ const Contracts = () => {
                 />
               </svg>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Bản nháp</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {contracts.filter((c) => c.status === "DRAFT").length}
-              </p>
-            </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-3 bg-gray-100 rounded-lg">
+        <div className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Đã chấm dứt</p>
+              <p className="text-xl font-bold text-gray-900">
+                {statsLoading ? "..." : stats.terminated}
+              </p>
+            </div>
+            <div className="p-2.5 bg-gray-50 rounded-lg">
               <svg
-                className="w-6 h-6 text-gray-600"
+                className="w-5 h-5 text-gray-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -316,18 +391,12 @@ const Contracts = () => {
                 />
               </svg>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Đã hủy</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {contracts.filter((c) => c.status === "CANCELLED").length}
-              </p>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* Filters and Search */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+      {/* Filters and Search - TailAdmin style */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-5">
         <ContractFilters
           onFilterChange={handleFilterChange}
           onSearch={handleSearch}
@@ -341,7 +410,7 @@ const Contracts = () => {
       </div>
 
       {/* Content */}
-      {contracts.length === 0 ? (
+      {contracts.length === 0 && !loading ? (
         <EmptyState
           title="Không có hợp đồng"
           description={
@@ -372,14 +441,21 @@ const Contracts = () => {
           )}
         />
       ) : (
-        <ContractsTable
-          contracts={contracts}
-          onEdit={handleEditContract}
-          onView={handleViewContract}
-          onDelete={handleDeleteContract}
-          onTerminate={handleTerminateContract}
-          onExtend={handleExtendContract}
-        />
+        <div className="relative">
+          {loading && (
+            <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          )}
+          <ContractsTable
+            contracts={contracts}
+            onEdit={handleEditContract}
+            onView={handleViewContract}
+            onDelete={handleDeleteContract}
+            onTerminate={handleTerminateContract}
+            onExtend={handleExtendContract}
+          />
+        </div>
       )}
 
       {/* Modals */}

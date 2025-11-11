@@ -10,10 +10,13 @@ export const meterService = {
             id,
             code,
             name,
+            property_id,
             properties!inner(
               id,
               name,
-              address
+              address,
+              ward,
+              city
             )
           ),
           services!inner(
@@ -21,27 +24,24 @@ export const meterService = {
             name,
             service_type,
             unit,
-            price_per_unit
+            price_per_unit,
+            is_metered
           )
         `);
 
-      // Apply filters
+      // Apply service filter first
       if (filters.service && filters.service !== "all") {
         query = query.eq("service_id", filters.service);
       }
 
+      // Apply room filter
       if (filters.room && filters.room !== "all") {
         query = query.eq("room_id", filters.room);
       }
 
-      if (filters.property && filters.property !== "all") {
-        query = query.eq("rooms.property_id", filters.property);
-      }
-
+      // Apply search on meter_code only (server-side)
       if (filters.search) {
-        query = query.or(
-          `meter_code.ilike.%${filters.search}%,rooms.code.ilike.%${filters.search}%,services.name.ilike.%${filters.search}%`
-        );
+        query = query.ilike("meter_code", `%${filters.search}%`);
       }
 
       // Apply sorting
@@ -53,7 +53,35 @@ export const meterService = {
 
       if (error) throw error;
 
-      return data || [];
+      let results = data || [];
+
+      // Apply property filter (client-side)
+      if (filters.property && filters.property !== "all") {
+        results = results.filter(
+          (meter) => meter.rooms?.property_id === filters.property
+        );
+      }
+
+      // Apply service type filter (client-side)
+      if (filters.serviceType && filters.serviceType !== "all") {
+        results = results.filter(
+          (meter) => meter.services?.service_type === filters.serviceType
+        );
+      }
+
+      // Apply search filter (client-side for nested fields)
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        results = results.filter(
+          (meter) =>
+            meter.meter_code?.toLowerCase().includes(searchLower) ||
+            meter.rooms?.code?.toLowerCase().includes(searchLower) ||
+            meter.rooms?.name?.toLowerCase().includes(searchLower) ||
+            meter.services?.name?.toLowerCase().includes(searchLower)
+        );
+      }
+
+      return results;
     } catch (error) {
       console.error("Error fetching meters:", error);
       throw new Error("Không thể tải danh sách đồng hồ");
@@ -170,37 +198,42 @@ export const meterService = {
   // Get meter statistics
   async getMeterStats() {
     try {
-      const { data: totalMeters } = await supabase
-        .from("meters")
-        .select("*", { count: "exact", head: true });
+      // Fetch all meters with service info
+      const { data: allMeters, error } = await supabase.from("meters").select(`
+          *,
+          services!inner(
+            service_type
+          )
+        `);
 
-      // Get meters by service type
-      const { data: electricityMeters } = await supabase
-        .from("meters")
-        .select("*", { count: "exact", head: true })
-        .eq("services.service_type", "ELECTRICITY");
+      if (error) throw error;
 
-      const { data: waterMeters } = await supabase
-        .from("meters")
-        .select("*", { count: "exact", head: true })
-        .eq("services.service_type", "WATER");
+      const meters = allMeters || [];
+
+      // Count by service type (client-side)
+      const electricityCount = meters.filter(
+        (m) => m.services?.service_type === "ELECTRIC"
+      ).length;
+
+      const waterCount = meters.filter(
+        (m) => m.services?.service_type === "WATER"
+      ).length;
 
       // Get meters that need reading (not read in last 30 days)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split("T")[0];
 
-      const { data: metersNeedingReading } = await supabase
-        .from("meters")
-        .select("*", { count: "exact", head: true })
-        .or(
-          `last_read_date.is.null,last_read_date.lt.${thirtyDaysAgo.toISOString()}`
-        );
+      const needingReadingCount = meters.filter((m) => {
+        if (!m.last_read_date) return true;
+        return m.last_read_date < thirtyDaysAgoStr;
+      }).length;
 
       return {
-        total: totalMeters?.length || 0,
-        electricity: electricityMeters?.length || 0,
-        water: waterMeters?.length || 0,
-        needingReading: metersNeedingReading?.length || 0,
+        total: meters.length,
+        electricity: electricityCount,
+        water: waterCount,
+        needingReading: needingReadingCount,
       };
     } catch (error) {
       console.error("Error fetching meter stats:", error);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getEmergencyContact } from "../utils/emergencyContactUtils";
 
 const EditTenantModal = ({ isOpen, onClose, onSubmit, tenant }) => {
   const [formData, setFormData] = useState({
@@ -11,13 +12,9 @@ const EditTenantModal = ({ isOpen, onClose, onSubmit, tenant }) => {
     occupation: "",
     id_number: "",
     note: "",
-    move_in_date: "",
-    move_out_date: "",
-    is_active: true,
     emergency_contact_name: "",
     emergency_contact_phone: "",
     emergency_contact_relationship: "",
-    account_status: "PENDING",
   });
 
   const [loading, setLoading] = useState(false);
@@ -25,6 +22,9 @@ const EditTenantModal = ({ isOpen, onClose, onSubmit, tenant }) => {
 
   useEffect(() => {
     if (isOpen && tenant) {
+      // Lấy emergency contact từ tenant_emergency_contacts hoặc fallback về cột cũ
+      const emergencyContact = getEmergencyContact(tenant);
+      
       setFormData({
         fullname: tenant.fullname || "",
         birthdate: tenant.birthdate || "",
@@ -35,13 +35,9 @@ const EditTenantModal = ({ isOpen, onClose, onSubmit, tenant }) => {
         occupation: tenant.occupation || "",
         id_number: tenant.id_number || "",
         note: tenant.note || "",
-        move_in_date: tenant.move_in_date || "",
-        move_out_date: tenant.move_out_date || "",
-        is_active: tenant.is_active !== undefined ? tenant.is_active : true,
-        emergency_contact_name: tenant.emergency_contact_name || "",
-        emergency_contact_phone: tenant.emergency_contact_phone || "",
-        emergency_contact_relationship: tenant.emergency_contact_relationship || "",
-        account_status: tenant.account_status || "PENDING",
+        emergency_contact_name: emergencyContact?.contact_name || "",
+        emergency_contact_phone: emergencyContact?.phone || "",
+        emergency_contact_relationship: emergencyContact?.relationship || "",
       });
       setErrors({});
     }
@@ -75,23 +71,11 @@ const EditTenantModal = ({ isOpen, onClose, onSubmit, tenant }) => {
       newErrors.email = "Email không hợp lệ";
     }
 
-    if (!formData.move_in_date) {
-      newErrors.move_in_date = "Ngày chuyển vào là bắt buộc";
-    }
-
     if (
       formData.birthdate &&
       formData.birthdate > new Date().toISOString().split("T")[0]
     ) {
       newErrors.birthdate = "Ngày sinh không thể trong tương lai";
-    }
-
-    if (
-      formData.move_out_date &&
-      formData.move_in_date &&
-      formData.move_out_date < formData.move_in_date
-    ) {
-      newErrors.move_out_date = "Ngày chuyển ra phải sau ngày chuyển vào";
     }
 
     setErrors(newErrors);
@@ -110,8 +94,6 @@ const EditTenantModal = ({ isOpen, onClose, onSubmit, tenant }) => {
         ...formData,
         // Convert empty date strings to null for database
         birthdate: formData.birthdate || null,
-        move_in_date: formData.move_in_date || null,
-        move_out_date: formData.move_out_date || null,
         // Convert empty strings to null for optional fields
         email: formData.email || null,
         hometown: formData.hometown || null,
@@ -166,22 +148,6 @@ const EditTenantModal = ({ isOpen, onClose, onSubmit, tenant }) => {
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6">
           <div className="space-y-6">
-            {/* Status */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  name="is_active"
-                  checked={formData.is_active}
-                  onChange={handleChange}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label className="ml-2 text-sm font-medium text-gray-700">
-                  Đang ở (bỏ chọn nếu đã chuyển ra)
-                </label>
-              </div>
-            </div>
-
             {/* Basic Info */}
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -300,6 +266,53 @@ const EditTenantModal = ({ isOpen, onClose, onSubmit, tenant }) => {
               </div>
             </div>
 
+            {/* Room Information (Read-only) */}
+            {tenant && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Thông tin phòng
+                </h3>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  {tenant.active_in_room && tenant.rooms ? (
+                    <div className="space-y-2">
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">
+                          Phòng đang ở
+                        </label>
+                        <p className="text-gray-900 font-semibold">
+                          {tenant.rooms.code}
+                          {tenant.rooms.name && ` - ${tenant.rooms.name}`}
+                        </p>
+                      </div>
+                      {tenant.rooms.properties && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-600">
+                            Nhà trọ
+                          </label>
+                          <p className="text-gray-900">
+                            {tenant.rooms.properties.name || "N/A"}
+                          </p>
+                        </div>
+                      )}
+                      <p className="text-xs text-gray-500 mt-2">
+                        💡 Để thay đổi phòng, vui lòng vào chức năng quản lý phòng để thêm
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">
+                        Trạng thái
+                      </label>
+                      <p className="text-gray-500 italic">Chưa có phòng</p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        💡 Để gán phòng, vui lòng vào chức năng quản lý phòng để thêm
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Additional Info */}
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -334,47 +347,6 @@ const EditTenantModal = ({ isOpen, onClose, onSubmit, tenant }) => {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ngày chuyển vào <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="move_in_date"
-                    value={formData.move_in_date}
-                    onChange={handleChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.move_in_date ? "border-red-500" : "border-gray-300"
-                    }`}
-                  />
-                  {errors.move_in_date && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors.move_in_date}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ngày chuyển ra
-                  </label>
-                  <input
-                    type="date"
-                    name="move_out_date"
-                    value={formData.move_out_date}
-                    onChange={handleChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.move_out_date
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    }`}
-                  />
-                  {errors.move_out_date && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors.move_out_date}
-                    </p>
-                  )}
-                </div>
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -447,29 +419,6 @@ const EditTenantModal = ({ isOpen, onClose, onSubmit, tenant }) => {
               </div>
             </div>
 
-            {/* Account Status */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Trạng thái tài khoản
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Trạng thái tài khoản
-                  </label>
-                  <select
-                    name="account_status"
-                    value={formData.account_status}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="PENDING">Chờ duyệt</option>
-                    <option value="ACTIVE">Hoạt động</option>
-                    <option value="SUSPENDED">Tạm khóa</option>
-                  </select>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Actions */}

@@ -21,7 +21,6 @@ const PropertyCard = ({ property, onEdit, onDelete, gridColumns = 1 }) => {
           property.id
         );
         console.log("PropertyCard - Stats received:", propertyStats);
-        console.log("PropertyCard - Current stats state:", stats);
         setStats(propertyStats);
       } catch (error) {
         console.error("Error fetching property stats:", error);
@@ -40,16 +39,16 @@ const PropertyCard = ({ property, onEdit, onDelete, gridColumns = 1 }) => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden min-h-[420px] flex flex-col">
+    <div className="bg-white rounded-lg border border-gray-200 hover:border-[#3C50E0] transition-all duration-200 overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="p-6 border-b border-gray-100 h-[140px] flex flex-col">
-        <div className="flex items-start justify-between h-full">
+      <div className="p-4 border-b border-gray-200">
+        <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <h3 className="text-xl font-bold text-gray-900 mb-2 truncate">
+            <h3 className="text-base font-semibold text-gray-900 mb-1 truncate">
               {property.name}
             </h3>
             {(property.city || property.ward) && (
-              <div className="text-sm text-gray-500 truncate">
+              <div className="text-xs text-gray-500 truncate">
                 {property.ward && property.city
                   ? `${property.ward}, ${property.city}`
                   : property.ward
@@ -58,18 +57,18 @@ const PropertyCard = ({ property, onEdit, onDelete, gridColumns = 1 }) => {
               </div>
             )}
             {property.address && (
-              <div className="text-sm text-gray-500 mt-1 line-clamp-2">
+              <div className="text-xs text-gray-500 mt-0.5 line-clamp-2">
                 {property.address}
               </div>
             )}
           </div>
-          <div className="flex space-x-2">
+          <div className="flex gap-1">
             <button
               onClick={handleEdit}
-              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              className="p-1.5 text-gray-400 hover:text-[#3C50E0] hover:bg-blue-50 rounded transition-colors"
             >
               <svg
-                className="w-5 h-5"
+                className="w-4 h-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -84,10 +83,10 @@ const PropertyCard = ({ property, onEdit, onDelete, gridColumns = 1 }) => {
             </button>
             <button
               onClick={handleDelete}
-              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
             >
               <svg
-                className="w-5 h-5"
+                className="w-4 h-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -105,48 +104,47 @@ const PropertyCard = ({ property, onEdit, onDelete, gridColumns = 1 }) => {
       </div>
 
       {/* Stats */}
-      <div className="p-6">
+      <div className="p-4">
         <div
-          className={`grid gap-2 mb-2 ${
+          className={`grid gap-2 mb-3 ${
             gridColumns <= 3
               ? "grid-cols-2 grid-rows-2"
               : "grid-cols-1 grid-rows-4"
           }`}
         >
-          <div className="bg-blue-50 rounded-lg p-3">
+          <div className="bg-blue-50 rounded p-2.5">
             <div className="text-center">
-              <p className="text-xs font-medium text-gray-600">Tổng phòng</p>
-              <p className="text-lg font-bold text-gray-900">
+              <p className="text-xs text-gray-600">Tổng phòng</p>
+              <p className="text-base font-semibold text-gray-900 mt-0.5">
                 {stats.totalRooms}
               </p>
             </div>
           </div>
 
-          <div className="bg-green-50 rounded-lg p-3">
+          <div className="bg-green-50 rounded p-2.5">
             <div className="text-center">
-              <p className="text-xs font-medium text-gray-600">Đã thuê</p>
-              <p className="text-lg font-bold text-green-600">
+              <p className="text-xs text-gray-600">Đã thuê</p>
+              <p className="text-base font-semibold text-green-600 mt-0.5">
                 {stats.occupiedRooms}
               </p>
             </div>
           </div>
 
-          <div className="bg-yellow-50 rounded-lg p-3">
+          <div className="bg-yellow-50 rounded p-2.5">
             <div className="text-center">
-              <p className="text-xs font-medium text-gray-600">Trống</p>
-              <p className="text-lg font-bold text-yellow-600">
+              <p className="text-xs text-gray-600">Trống</p>
+              <p className="text-base font-semibold text-yellow-600 mt-0.5">
                 {stats.vacantRooms}
               </p>
             </div>
           </div>
 
-          <div className="bg-purple-50 rounded-lg p-3">
+          <div className="bg-purple-50 rounded p-2.5">
             <div className="text-center">
-              <p className="text-xs font-medium text-gray-600">
-                Hiện tại đang có
-              </p>
-              <p className="text-lg font-bold text-purple-600">
-                {stats.currentOccupants || 0} người
+              <p className="text-xs text-gray-600">Đang ở</p>
+              <p className="text-base font-semibold text-purple-600 mt-0.5">
+                {stats.currentOccupants || 0}
+                người
               </p>
             </div>
           </div>
@@ -154,19 +152,19 @@ const PropertyCard = ({ property, onEdit, onDelete, gridColumns = 1 }) => {
 
         {/* Capacity Info */}
         <div
-          className={`grid gap-1 text-sm ${
+          className={`grid gap-2 text-xs ${
             gridColumns <= 3 ? "grid-cols-2" : "grid-cols-1"
           }`}
         >
-          <div className="text-center">
-            <div className="text-gray-500">Sức chứa</div>
-            <div className="font-semibold text-gray-900">
-              {stats.totalCapacity || 0} người
+          <div className="text-center bg-gray-50 rounded p-2">
+            <div className="text-gray-600">Sức chứa</div>
+            <div className="font-semibold text-gray-900 mt-0.5">
+              {stats.totalCapacity || 0}
             </div>
           </div>
-          <div className="text-center">
-            <div className="text-gray-500">Tỷ lệ thuê</div>
-            <div className="font-semibold text-gray-900">
+          <div className="text-center bg-gray-50 rounded p-2">
+            <div className="text-gray-600">Tỷ lệ thuê</div>
+            <div className="font-semibold text-gray-900 mt-0.5">
               {stats.totalRooms > 0
                 ? Math.round((stats.occupiedRooms / stats.totalRooms) * 100)
                 : 0}
@@ -177,20 +175,20 @@ const PropertyCard = ({ property, onEdit, onDelete, gridColumns = 1 }) => {
       </div>
 
       {/* Actions */}
-      <div className="px-6 pb-3 mt-2">
+      <div className="px-4 pb-4 mt-auto">
         <div
-          className={`flex gap-3 ${
+          className={`flex gap-2 ${
             gridColumns <= 3 ? "justify-between" : "flex-col"
           }`}
         >
           <button
             onClick={() => navigate(`/rooms/${property.id}`)}
-            className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            className="flex-1 bg-[#3C50E0] text-white py-2 px-3 rounded-lg hover:bg-[#3347C6] transition-colors text-sm font-medium"
           >
             Quản lý phòng
           </button>
-          <button className="flex-1 bg-white text-gray-700 py-2 px-4 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors font-medium">
-            Xem chi tiết
+          <button className="flex-1 bg-white text-gray-700 py-2 px-3 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors text-sm font-medium">
+            Chi tiết
           </button>
         </div>
       </div>

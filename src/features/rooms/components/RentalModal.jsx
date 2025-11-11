@@ -8,7 +8,6 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
   const [tenantOption, setTenantOption] = useState("new"); // "new" or "existing"
   const [selectedTenant, setSelectedTenant] = useState(null);
   const [contractFiles, setContractFiles] = useState([]);
-  const [syncMoveInDate, setSyncMoveInDate] = useState(true); // Checkbox để đồng bộ move_in_date với start_date
 
   const [formData, setFormData] = useState({
     // Thông tin người thuê
@@ -21,7 +20,6 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
     occupation: "",
     id_number: "",
     note: "",
-    move_in_date: "",
 
     // Thông tin hợp đồng
     contract_number: "",
@@ -46,7 +44,6 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
         monthly_rent: room.monthly_rent || "",
         deposit: room.deposit_amount || "",
         start_date: today,
-        move_in_date: today, // Đồng bộ với start_date
         payment_day: 1, // Mặc định ngày 1
       }));
     }
@@ -54,19 +51,10 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => {
-      const newData = {
-        ...prev,
-        [name]: value,
-      };
-
-      // Đồng bộ move_in_date với start_date nếu checkbox được check
-      if (name === "start_date" && syncMoveInDate) {
-        newData.move_in_date = value;
-      }
-
-      return newData;
-    });
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
 
     // Clear error when user starts typing
     if (errors[name]) {
@@ -193,33 +181,6 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
     return errors;
   };
 
-  const handleSyncMoveInDateChange = (checked) => {
-    setSyncMoveInDate(checked);
-    if (checked) {
-      // Nếu check, đồng bộ move_in_date với start_date hiện tại
-      setFormData((prev) => ({
-        ...prev,
-        move_in_date: prev.start_date,
-      }));
-    }
-  };
-
-  // Handle start_date change to sync with move_in_date if sync is enabled
-  const handleStartDateChange = (value) => {
-    setFormData((prev) => {
-      const newData = {
-        ...prev,
-        start_date: value,
-      };
-
-      // Nếu sync được bật, cập nhật move_in_date
-      if (syncMoveInDate) {
-        newData.move_in_date = value;
-      }
-
-      return newData;
-    });
-  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -237,10 +198,6 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
       newErrors.email = "Email không hợp lệ";
     }
 
-    if (!formData.move_in_date) {
-      newErrors.move_in_date = "Ngày chuyển vào là bắt buộc";
-    }
-
     // Validation cho hợp đồng
     if (!formData.start_date) {
       newErrors.start_date = "Ngày bắt đầu hợp đồng là bắt buộc";
@@ -256,25 +213,6 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
       formData.start_date >= formData.end_date
     ) {
       newErrors.end_date = "Ngày kết thúc phải sau ngày bắt đầu";
-    }
-
-    // Validation cho move_in_date
-    if (
-      formData.move_in_date &&
-      formData.start_date &&
-      formData.move_in_date > formData.start_date
-    ) {
-      newErrors.move_in_date =
-        "Ngày chuyển vào không được sau ngày bắt đầu hợp đồng";
-    }
-
-    if (
-      formData.move_in_date &&
-      formData.end_date &&
-      formData.move_in_date > formData.end_date
-    ) {
-      newErrors.move_in_date =
-        "Ngày chuyển vào không được sau ngày kết thúc hợp đồng";
     }
 
     if (!formData.monthly_rent || formData.monthly_rent <= 0) {
@@ -315,7 +253,6 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
           tenantOption === "existing" && selectedTenant
             ? {
                 id: selectedTenant.id, // Use existing tenant ID
-                move_in_date: formData.move_in_date,
               }
             : {
                 fullname: formData.fullname,
@@ -327,7 +264,6 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
                 occupation: formData.occupation || null,
                 id_number: formData.id_number || null,
                 note: formData.note || null,
-                move_in_date: formData.move_in_date,
                 is_active: true,
               },
 
@@ -371,7 +307,6 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
     setTenantOption("new");
     setSelectedTenant(null);
     setContractFiles([]);
-    setSyncMoveInDate(true);
     setFormData({
       fullname: "",
       birthdate: "",
@@ -382,7 +317,6 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
       occupation: "",
       id_number: "",
       note: "",
-      move_in_date: "",
       contract_number: "",
       start_date: "",
       end_date: "",
@@ -392,6 +326,7 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
       payment_day: 1,
     });
     setErrors({});
+    setValidationErrors({});
   };
 
   if (!isOpen) return null;
@@ -639,48 +574,6 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
                     )}
                   </div>
 
-                  <div className="md:col-span-2">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-sm font-medium text-gray-700">
-                        Ngày chuyển vào <span className="text-red-500">*</span>
-                      </label>
-                      <label className="flex items-center text-sm text-gray-600">
-                        <input
-                          type="checkbox"
-                          checked={syncMoveInDate}
-                          onChange={(e) =>
-                            handleSyncMoveInDateChange(e.target.checked)
-                          }
-                          className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <span>Trùng ngày hợp đồng</span>
-                      </label>
-                    </div>
-                    <input
-                      type="date"
-                      name="move_in_date"
-                      value={formData.move_in_date}
-                      onChange={handleChange}
-                      disabled={syncMoveInDate}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                        errors.move_in_date
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      } ${
-                        syncMoveInDate ? "bg-gray-100 cursor-not-allowed" : ""
-                      }`}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      {syncMoveInDate
-                        ? "Tự động đồng bộ với ngày bắt đầu hợp đồng"
-                        : "Có thể khác với ngày bắt đầu hợp đồng nếu cần"}
-                    </p>
-                    {errors.move_in_date && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {errors.move_in_date}
-                      </p>
-                    )}
-                  </div>
 
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -729,7 +622,7 @@ const RentalModal = ({ isOpen, onClose, onSubmit, room }) => {
                       type="date"
                       name="start_date"
                       value={formData.start_date}
-                      onChange={(e) => handleStartDateChange(e.target.value)}
+                      onChange={handleChange}
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                         errors.start_date ? "border-red-500" : "border-gray-300"
                       }`}

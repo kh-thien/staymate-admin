@@ -1,13 +1,14 @@
 import { supabase } from "../../../core/data/remote/supabase";
 
 export const propertyService = {
-  // Get property by ID
+  // Get property by ID (exclude deleted)
   async getPropertyById(propertyId) {
     try {
       const { data, error } = await supabase
         .from("properties")
         .select("*")
         .eq("id", propertyId)
+        .is("deleted_at", null) // Only get non-deleted property
         .single();
 
       if (error) throw error;
@@ -18,13 +19,14 @@ export const propertyService = {
     }
   },
 
-  // Get property stats
+  // Get property stats (exclude deleted rooms)
   async getPropertyStats(propertyId) {
     try {
       const { data: rooms, error } = await supabase
         .from("rooms")
         .select("id, status, capacity, current_occupants")
-        .eq("property_id", propertyId);
+        .eq("property_id", propertyId)
+        .is("deleted_at", null); // Only count non-deleted rooms
 
       if (error) throw error;
 

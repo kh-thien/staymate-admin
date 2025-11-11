@@ -265,103 +265,31 @@ export const tenantInvitationService = {
   // Xác nhận lời mời
   async acceptInvitation(invitationToken) {
     try {
-      // Tìm invitation record
-      const { data: invitation, error: findError } = await supabase
-        .from("tenant_invitations")
-        .select(
-          `
-          *,
-          tenants!inner(
-            id,
-            fullname,
-            email,
-            phone,
-            account_status
-          )
-        `
-        )
-        .eq("invitation_token", invitationToken)
-        .eq("status", "PENDING")
-        .gt("expires_at", new Date().toISOString())
-        .single();
-
-      if (findError || !invitation) {
-        throw new Error("Lời mời không hợp lệ hoặc đã hết hạn");
-      }
-
-      const tenant = invitation.tenants;
-
-      // Kiểm tra xem user đã tồn tại trong users table chưa
-      const { data: existingUser, error: userCheckError } = await supabase
-        .from("users")
-        .select("userid")
-        .eq("email", invitation.email)
-        .single();
-
-      if (userCheckError || !existingUser) {
-        throw new Error(
-          "Người thuê chưa có tài khoản trong hệ thống. Vui lòng yêu cầu họ tạo tài khoản trên mobile app trước."
-        );
-      }
-
-      const userId = existingUser.userid;
-
-      // Cập nhật tenant với user_id và account_status
-      const { error: updateTenantError } = await supabase
-        .from("tenants")
-        .update({
-          user_id: userId,
-          account_status: "ACTIVE",
-        })
-        .eq("id", tenant.id);
-
-      if (updateTenantError) {
-        throw new Error(`Lỗi cập nhật tenant: ${updateTenantError.message}`);
-      }
-
-      // Cập nhật invitation status
-      const { error: updateInvitationError } = await supabase
-        .from("tenant_invitations")
-        .update({
-          status: "ACCEPTED",
-          accepted_at: new Date().toISOString(),
-          user_id: userId,
-        })
-        .eq("id", invitation.id);
-
-      if (updateInvitationError) {
-        throw new Error(
-          `Lỗi cập nhật invitation: ${updateInvitationError.message}`
-        );
-      }
-
-      // Kích hoạt chat room tự động (nếu có)
-      console.log("Activating chat room...");
-      try {
-        const { data: activationResult, error: activationError } =
-          await supabase.rpc("activate_tenant_chat_room", {
-            p_tenant_id: tenant.id,
-            p_user_id: userId,
-          });
-
-        if (activationError) {
-          console.warn(
-            "Warning: Could not activate chat room:",
-            activationError
-          );
-          // Không throw error vì việc kích hoạt chat room không bắt buộc
-        } else if (activationResult?.success) {
-          console.log("Chat room activated successfully:", activationResult);
+      // Sử dụng RPC function để bypass RLS issues
+      const { data: result, error: rpcError } = await supabase.rpc(
+        "accept_tenant_invitation",
+        {
+          p_invitation_token: invitationToken,
         }
-      } catch (activationErr) {
-        console.warn("Warning: Chat room activation failed:", activationErr);
-        // Không throw error vì việc kích hoạt chat room không bắt buộc
+      );
+
+      if (rpcError) {
+        console.error("RPC Error:", rpcError);
+        throw new Error(
+          rpcError.message || "Lời mời không hợp lệ hoặc đã hết hạn"
+        );
+      }
+
+      if (!result || !result.success) {
+        throw new Error(
+          result?.error || "Lời mời không hợp lệ hoặc đã hết hạn"
+        );
       }
 
       return {
         success: true,
-        message: "Xác nhận lời mời thành công!",
-        tenant: tenant,
+        message: result.message || "Xác nhận lời mời thành công!",
+        tenant: result.tenant,
       };
     } catch (error) {
       console.error("Error accepting invitation:", error);

@@ -13,10 +13,10 @@ const ExtendContractModal = ({ isOpen, onClose, onSubmit, contract }) => {
 
   useEffect(() => {
     if (isOpen && contract) {
-      // Tính ngày kết thúc mới (thêm 1 năm từ ngày hiện tại)
-      const currentDate = new Date();
-      const oneYearLater = new Date(currentDate);
-      oneYearLater.setFullYear(currentDate.getFullYear() + 1);
+      // Tính ngày kết thúc mới (thêm 1 năm từ ngày kết thúc hiện tại của hợp đồng)
+      const currentEndDate = new Date(contract.end_date);
+      const oneYearLater = new Date(currentEndDate);
+      oneYearLater.setFullYear(currentEndDate.getFullYear() + 1);
 
       setFormData({
         newEndDate: oneYearLater.toISOString().split("T")[0],
@@ -49,7 +49,7 @@ const ExtendContractModal = ({ isOpen, onClose, onSubmit, contract }) => {
       newErrors.newEndDate = "Ngày kết thúc mới là bắt buộc";
     } else if (new Date(formData.newEndDate) <= new Date(contract?.end_date)) {
       newErrors.newEndDate =
-        "Ngày kết thúc mới phải sau ngày kết thúc hiện tại";
+        "Ngày kết thúc mới phải sau ngày kết thúc hiện tại (phải lớn hơn ngày cũ)";
     }
 
     if (formData.newMonthlyRent && formData.newMonthlyRent <= 0) {
@@ -237,7 +237,7 @@ const ExtendContractModal = ({ isOpen, onClose, onSubmit, contract }) => {
                   </p>
                 )}
                 <p className="text-sm text-gray-500 mt-1">
-                  Ngày kết thúc mới của hợp đồng sau khi gia hạn
+                  Ngày kết thúc mới phải sau ngày kết thúc hiện tại ({contract?.end_date ? new Date(contract.end_date).toLocaleDateString("vi-VN") : ""})
                 </p>
               </div>
 

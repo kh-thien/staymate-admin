@@ -1,13 +1,32 @@
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { useAppLayout } from "../context/useAppLayout";
 import { useAuth } from "../../auth/context";
 import { useNavigate } from "react-router-dom";
 
 export default function UserDropdown() {
   const { dropdownOpen, setDropdownOpen } = useAppLayout();
-  const { logout, user,userId } = useAuth();
+  const { logout, user, userId } = useAuth();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
+  const [avatarError, setAvatarError] = useState(false);
+
+  // Reset avatar error when user changes
+  useEffect(() => {
+    setAvatarError(false);
+  }, [user?.avatarUrl, user?.avatar_url, userId]);
+
+  // Get user initials for fallback avatar
+  const getUserInitials = () => {
+    if (user?.fullName) {
+      return user.fullName.charAt(0).toUpperCase();
+    }
+    if (user?.email) {
+      return user.email.charAt(0).toUpperCase();
+    }
+    return "U";
+  };
+
+  const avatarUrl = user?.avatarUrl || user?.avatar_url;
 
   return (
     <div>
@@ -16,11 +35,18 @@ export default function UserDropdown() {
           onClick={() => setDropdownOpen(!dropdownOpen)}
           className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 relative z-50"
         >
-          <img
-            src="https://i.pinimg.com/originals/ae/67/fc/ae67fccf0f42ef56b3447b5fba2d5ed2.png"
-            alt="User Avatar"
-            className="w-8 h-8 rounded-full ring-2 ring-gray-200"
-          />
+          {avatarUrl && !avatarError ? (
+            <img
+              src={avatarUrl}
+              alt="User Avatar"
+              className="w-8 h-8 rounded-full ring-2 ring-gray-200 object-cover"
+              onError={() => setAvatarError(true)}
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-full ring-2 ring-gray-200 bg-blue-500 flex items-center justify-center text-white font-medium text-sm">
+              {getUserInitials()}
+            </div>
+          )}
           <span className="text-sm font-medium text-gray-700">{user?.email}</span>
           <svg
             className="w-4 h-4 text-gray-500"

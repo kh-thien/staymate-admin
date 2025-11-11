@@ -2,8 +2,10 @@ import React, { useState } from "react";
 import TenantContractsModal from "./TenantContractsModal";
 import TenantBillsModal from "./TenantBillsModal";
 import TenantMoveModal from "./TenantMoveModal";
+import StatusBadge from "./StatusBadge";
 import { tenantInvitationService } from "../services/tenantInvitationService";
 import { supabase } from "../../../core/data/remote/supabase";
+import { getEmergencyContact } from "../utils/emergencyContactUtils";
 
 const TenantDetailModal = ({ isOpen, onClose, tenant, onEdit, onDelete }) => {
   const [showContractsModal, setShowContractsModal] = useState(false);
@@ -58,11 +60,10 @@ const TenantDetailModal = ({ isOpen, onClose, tenant, onEdit, onDelete }) => {
 
     if (contractFetchError) throw contractFetchError;
 
-    // 2. Update tenant - set move_out_date và is_active = false
+    // 2. Update tenant - set is_active = false
     const { error: tenantError } = await supabase
       .from("tenants")
       .update({
-        move_out_date: moveDate,
         is_active: false,
         note: note || null,
       })
@@ -119,11 +120,10 @@ const TenantDetailModal = ({ isOpen, onClose, tenant, onEdit, onDelete }) => {
   const handleMoveInLogic = async (moveData) => {
     const { moveDate, reason, note, newRoomId } = moveData;
 
-    // 1. Update tenant - set move_in_date và room_id mới
+    // 1. Update tenant - set room_id mới
     const { error: tenantError } = await supabase
       .from("tenants")
       .update({
-        move_in_date: moveDate,
         room_id: newRoomId,
         is_active: true,
         note: note || null,
@@ -246,16 +246,6 @@ const TenantDetailModal = ({ isOpen, onClose, tenant, onEdit, onDelete }) => {
     return age;
   };
 
-  const getStatusColor = (isActive) => {
-    return isActive
-      ? "bg-green-100 text-green-800 border-green-200"
-      : "bg-red-100 text-red-800 border-red-200";
-  };
-
-  const getStatusText = (isActive) => {
-    return isActive ? "Đang ở" : "Đã chuyển";
-  };
-
   const getGenderIcon = (gender) => {
     switch (gender) {
       case "Nam":
@@ -326,13 +316,10 @@ const TenantDetailModal = ({ isOpen, onClose, tenant, onEdit, onDelete }) => {
             </div>
           </div>
           <div className="flex items-center space-x-3">
-            <span
-              className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border ${getStatusColor(
-                tenant.is_active
-              )}`}
-            >
-              {getStatusText(tenant.is_active)}
-            </span>
+            <StatusBadge 
+              isActive={tenant.active_in_room}
+              className="px-4 py-2 text-sm"
+            />
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -442,32 +429,40 @@ const TenantDetailModal = ({ isOpen, onClose, tenant, onEdit, onDelete }) => {
                   <p className="text-gray-900">{tenant.email || "N/A"}</p>
                 </div>
 
-                {tenant.room && (
+                {tenant.active_in_room && tenant.rooms ? (
                   <div className="space-y-3">
                     <div>
                       <label className="text-sm font-medium text-gray-600">
                         Phòng đang ở
                       </label>
                       <p className="text-gray-900 font-semibold">
-                        {tenant.room.code} - {tenant.room.name || "N/A"}
+                        {tenant.rooms.code}
+                        {tenant.rooms.name && ` - ${tenant.rooms.name}`}
                       </p>
                     </div>
 
-                    {tenant.room.property && (
+                    {tenant.rooms.properties && (
                       <div>
                         <label className="text-sm font-medium text-gray-600">
                           Nhà trọ
                         </label>
                         <p className="text-gray-900">
-                          {tenant.room.property.name || "N/A"}
+                          {tenant.rooms.properties.name || "N/A"}
                         </p>
-                        {tenant.room.property.address && (
+                        {tenant.rooms.properties.address && (
                           <p className="text-sm text-gray-500 mt-1">
-                            {tenant.room.property.address}
+                            {tenant.rooms.properties.address}
                           </p>
                         )}
                       </div>
                     )}
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">
+                      Phòng
+                    </label>
+                    <p className="text-gray-500 italic">Chưa có phòng</p>
                   </div>
                 )}
               </div>
@@ -483,38 +478,62 @@ const TenantDetailModal = ({ isOpen, onClose, tenant, onEdit, onDelete }) => {
               </h3>
 
               <div className="space-y-4">
-                {tenant.emergency_contact_name ? (
-                  <>
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">
-                        Họ tên người liên hệ
-                      </label>
-                      <p className="text-gray-900 font-semibold">
-                        {tenant.emergency_contact_name}
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">
-                        Số điện thoại
-                      </label>
-                      <p className="text-gray-900">
-                        {tenant.emergency_contact_phone}
-                      </p>
-                    </div>
-
-                    {tenant.emergency_contact_relationship && (
+                {(() => {
+                  const emergencyContact = getEmergencyContact(tenant);
+                  return emergencyContact ? (
+                    <>
                       <div>
                         <label className="text-sm font-medium text-gray-600">
-                          Mối quan hệ
+                          Họ tên người liên hệ
                         </label>
-                        <p className="text-gray-900">
-                          {tenant.emergency_contact_relationship}
+                        <p className="text-gray-900 font-semibold">
+                          {emergencyContact.contact_name}
                         </p>
                       </div>
-                    )}
-                  </>
-                ) : (
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">
+                          Số điện thoại
+                        </label>
+                        <p className="text-gray-900">
+                          {emergencyContact.phone}
+                        </p>
+                      </div>
+
+                      {emergencyContact.relationship && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-600">
+                            Mối quan hệ
+                          </label>
+                          <p className="text-gray-900">
+                            {emergencyContact.relationship}
+                          </p>
+                        </div>
+                      )}
+
+                      {emergencyContact.email && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-600">
+                            Email
+                          </label>
+                          <p className="text-gray-900">
+                            {emergencyContact.email}
+                          </p>
+                        </div>
+                      )}
+
+                      {emergencyContact.address && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-600">
+                            Địa chỉ
+                          </label>
+                          <p className="text-gray-900">
+                            {emergencyContact.address}
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  ) : (
                   <div className="text-center py-8">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <svg
@@ -535,7 +554,8 @@ const TenantDetailModal = ({ isOpen, onClose, tenant, onEdit, onDelete }) => {
                       Chưa cập nhật thông tin liên hệ khẩn cấp
                     </p>
                   </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
 
@@ -567,7 +587,7 @@ const TenantDetailModal = ({ isOpen, onClose, tenant, onEdit, onDelete }) => {
                       {tenant.account_status === "ACTIVE"
                         ? "Đang hoạt động"
                         : tenant.account_status === "PENDING"
-                        ? "Chờ duyệt"
+                        ? "Chưa kích hoạt"
                         : tenant.account_status === "SUSPENDED"
                         ? "Đã tạm khóa"
                         : tenant.account_status === "DELETED"
@@ -750,102 +770,56 @@ const TenantDetailModal = ({ isOpen, onClose, tenant, onEdit, onDelete }) => {
             </div>
           </div>
 
-          {/* Dates */}
+          {/* Room Information */}
           <div className="mt-8">
             <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">
-              Lịch sử chuyển nhà
+              Thông tin phòng
             </h3>
-            <div className="space-y-4">
-              {/* Current/Last Move */}
-              <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                <div className="flex items-start space-x-4">
-                  <div className="flex-shrink-0">
-                    <div
-                      className={`w-3 h-3 rounded-full mt-2 ${
-                        tenant.is_active ? "bg-green-500" : "bg-red-500"
-                      }`}
-                    ></div>
+            <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+              <div className="flex items-start space-x-4">
+                <div className="flex-shrink-0">
+                  <div
+                    className={`w-3 h-3 rounded-full mt-2 ${
+                      tenant.active_in_room ? "bg-green-500" : "bg-gray-400"
+                    }`}
+                  ></div>
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium text-gray-900">
+                      {tenant.active_in_room ? "Đang ở" : "Chưa có phòng"}
+                    </h4>
+                    <StatusBadge isActive={tenant.active_in_room} />
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-medium text-gray-900">
-                        {tenant.is_active ? "Đang ở" : "Đã chuyển"}
-                      </h4>
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          tenant.is_active
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {tenant.is_active ? "Hiện tại" : "Đã kết thúc"}
-                      </span>
-                    </div>
 
-                    {tenant.rooms && (
-                      <div className="mb-3">
+                  {tenant.active_in_room && tenant.rooms ? (
+                    <div className="space-y-2">
+                      <div>
                         <p className="text-sm font-medium text-gray-900">
                           Phòng: {tenant.rooms.code}
                           {tenant.rooms.name && ` - ${tenant.rooms.name}`}
                         </p>
-                        {tenant.rooms.properties && (
-                          <div className="mt-1">
-                            <p className="text-sm text-gray-600">
-                              Nhà trọ: {tenant.rooms.properties.name}
-                            </p>
-                            <p className="text-xs text-gray-500">
+                      </div>
+                      {tenant.rooms.properties && (
+                        <div>
+                          <p className="text-sm text-gray-600">
+                            Nhà trọ: {tenant.rooms.properties.name}
+                          </p>
+                          {tenant.rooms.properties.address && (
+                            <p className="text-xs text-gray-500 mt-1">
                               {tenant.rooms.properties.address}
                             </p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                      <div className="flex items-center space-x-2">
-                        <svg
-                          className="w-4 h-4 text-green-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                          />
-                        </svg>
-                        <span className="font-medium">Vào:</span>
-                        <span>{formatDate(tenant.move_in_date)}</span>
-                      </div>
-
-                      {tenant.move_out_date && (
-                        <div className="flex items-center space-x-2">
-                          <svg
-                            className="w-4 h-4 text-red-600"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                            />
-                          </svg>
-                          <span className="font-medium">Ra:</span>
-                          <span>{formatDate(tenant.move_out_date)}</span>
+                          )}
                         </div>
                       )}
                     </div>
-                  </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">
+                      Người thuê chưa được gán vào phòng nào
+                    </p>
+                  )}
                 </div>
               </div>
-
-              {/* Future: Add more move history here if needed */}
-              {/* This would be populated from a moves history table if it exists */}
             </div>
           </div>
 
@@ -955,7 +929,7 @@ const TenantDetailModal = ({ isOpen, onClose, tenant, onEdit, onDelete }) => {
               </svg>
               Hóa đơn
             </button>
-            {tenant.is_active ? (
+            {tenant.active_in_room ? (
               <button
                 onClick={handleMoveOut}
                 className="flex items-center justify-center px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors"

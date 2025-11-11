@@ -48,10 +48,13 @@ export const rentalService = {
         );
       }
 
-      if (!tenant.fullname || !tenant.phone) {
-        throw new Error(
-          "Thiếu thông tin bắt buộc của người thuê: họ tên hoặc số điện thoại"
-        );
+      // Validate tenant data - chỉ validate khi tạo tenant mới (không có id)
+      if (!tenant.id) {
+        if (!tenant.fullname || !tenant.phone) {
+          throw new Error(
+            "Thiếu thông tin bắt buộc của người thuê: họ tên hoặc số điện thoại"
+          );
+        }
       }
 
       if (
@@ -70,15 +73,10 @@ export const rentalService = {
         // Update existing tenant - chỉ update thông tin cần thiết
         const updateData = {
           room_id: room_id,
-          move_in_date: tenant.move_in_date,
           is_active: true,
+          active_in_room: true, // Set active_in_room = true khi assign vào room
           updated_at: new Date().toISOString(),
         };
-
-        // Chỉ update move_out_date nếu có giá trị mới
-        if (tenant.move_out_date) {
-          updateData.move_out_date = tenant.move_out_date;
-        }
 
         const { data: updatedTenant, error: tenantError } = await supabase
           .from("tenants")
@@ -90,12 +88,21 @@ export const rentalService = {
         if (tenantError) throw tenantError;
         tenantId = updatedTenant.id;
       } else {
-        // Create new tenant
+        // Create new tenant - loại bỏ move_in_date và move_out_date
+        const { move_in_date, move_out_date, ...tenantDataWithoutDates } = tenant;
+        
+        // Lấy user ID từ Supabase auth để set created_by (required bởi RLS)
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+        if (authError || !authUser) {
+          throw new Error("Không thể xác thực người dùng. Vui lòng đăng nhập lại.");
+        }
+        
         const tenantData = {
-          ...tenant,
+          ...tenantDataWithoutDates,
           room_id: room_id,
-          move_out_date: null, // Không set move_out_date khi tạo mới
           is_active: true,
+          active_in_room: true, // Set active_in_room = true khi tạo mới và assign vào room
+          created_by: authUser.id, // Required bởi RLS policy
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
@@ -147,10 +154,32 @@ export const rentalService = {
         contractFilesData = uploadResult.data;
       }
 
-      // Step 4: Create contract
+      // Step 4: Get landlord_id from property owner
+      const { data: roomData, error: roomDataError } = await supabase
+        .from("rooms")
+        .select(`
+          id,
+          property_id,
+          properties!inner(
+            id,
+            owner_id
+          )
+        `)
+        .eq("id", room_id)
+        .single();
+
+      if (roomDataError) throw roomDataError;
+      if (!roomData || !roomData.properties) {
+        throw new Error("Không tìm thấy thông tin phòng hoặc nhà trọ");
+      }
+
+      const landlordId = roomData.properties.owner_id;
+
+      // Step 5: Create contract
       const contractData = {
         room_id: room_id,
         tenant_id: tenantId,
+        landlord_id: landlordId, // Set landlord_id từ property owner
         contract_number: contractNumber,
         status: contract.status || "ACTIVE",
         start_date: contract.start_date,
@@ -171,7 +200,7 @@ export const rentalService = {
 
       if (contractError) throw contractError;
 
-      // Step 5: Save contract files to database if exist
+      // Step 6: Save contract files to database if exist
       if (contractFilesData && contractFilesData.length > 0) {
         const saveFilesResult =
           await contractFileService.saveContractFilesToDatabase(
@@ -186,7 +215,7 @@ export const rentalService = {
         }
       }
 
-      // Step 6: Update room status
+      // Step 7: Update room status
       const { error: roomError } = await supabase
         .from("rooms")
         .update({

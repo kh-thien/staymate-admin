@@ -10,10 +10,10 @@ const StatusBadge = ({ isActive, className = "" }) => {
     </span>
   ) : (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 ${className}`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 ${className}`}
     >
-      <div className="w-2 h-2 bg-red-500 rounded-full mr-1.5"></div>
-      Đã chuyển
+      <div className="w-2 h-2 bg-gray-500 rounded-full mr-1.5"></div>
+      Chưa có phòng
     </span>
   );
 };

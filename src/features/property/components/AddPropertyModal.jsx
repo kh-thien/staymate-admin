@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../auth/context/useAuth";
 import { propertyService } from "../services/propertyService";
-import { addressService } from "../services/addressService";
 
 const AddPropertyModal = ({ isOpen, onClose, onSuccess, editingProperty }) => {
   const { user } = useAuth();
@@ -9,27 +8,11 @@ const AddPropertyModal = ({ isOpen, onClose, onSuccess, editingProperty }) => {
     name: "",
     address: "",
     city: "",
-    district: "",
     ward: "",
     description: "",
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
-
-  // States cho địa chỉ
-  const [provinces, setProvinces] = useState([]);
-  const [wards, setWards] = useState([]);
-  const [selectedProvince, setSelectedProvince] = useState("");
-  const [selectedWard, setSelectedWard] = useState("");
-  const [loadingProvinces, setLoadingProvinces] = useState(false);
-  const [loadingWards, setLoadingWards] = useState(false);
-
-  // Load provinces khi modal mở
-  useEffect(() => {
-    if (isOpen && provinces.length === 0) {
-      loadProvinces();
-    }
-  }, [isOpen, provinces.length]);
 
   // Populate form khi edit
   useEffect(() => {
@@ -38,90 +21,20 @@ const AddPropertyModal = ({ isOpen, onClose, onSuccess, editingProperty }) => {
         name: editingProperty.name || "",
         address: editingProperty.address || "",
         city: editingProperty.city || "",
-        district: editingProperty.district || "",
         ward: editingProperty.ward || "",
         description: editingProperty.description || "",
       });
-
-      // Set selected values
-      if (editingProperty.city) {
-        // Tìm province code từ city name
-        const province = provinces.find((p) => p.name === editingProperty.city);
-        if (province) {
-          setSelectedProvince(province.code);
-          // Load wards cho province này
-          loadWards(province.code);
-        }
-      }
     } else if (!editingProperty && isOpen) {
       // Reset form khi tạo mới
       setFormData({
         name: "",
         address: "",
         city: "",
-        district: "",
         ward: "",
         description: "",
       });
-      setSelectedProvince("");
-      setSelectedWard("");
-      setWards([]);
     }
-  }, [editingProperty, isOpen, provinces]);
-
-  // Xử lý set ward khi wards đã load xong
-  useEffect(() => {
-    if (editingProperty && editingProperty.ward && wards.length > 0) {
-      const ward = wards.find((w) => w.name === editingProperty.ward);
-      if (ward) {
-        setSelectedWard(ward.code);
-      }
-    }
-  }, [wards, editingProperty]);
-
-  const loadProvinces = async () => {
-    try {
-      setLoadingProvinces(true);
-      const data = await addressService.getProvinces();
-      console.log("Debug - Loaded provinces:", data);
-      setProvinces(data);
-    } catch (error) {
-      console.error("Error loading provinces:", error);
-      alert("Không thể tải danh sách tỉnh/thành phố");
-    } finally {
-      setLoadingProvinces(false);
-    }
-  };
-
-  const loadWards = async (provinceCode) => {
-    try {
-      setLoadingWards(true);
-      const data = await addressService.getWards(provinceCode);
-      console.log("Debug - Loaded wards for province", provinceCode, ":", data);
-      setWards(data);
-    } catch (error) {
-      console.error("Error loading wards:", error);
-      alert("Không thể tải danh sách phường/xã");
-    } finally {
-      setLoadingWards(false);
-    }
-  };
-
-  const handleProvinceChange = (e) => {
-    const provinceCode = e.target.value;
-    setSelectedProvince(provinceCode);
-    setSelectedWard("");
-    setWards([]);
-
-    if (provinceCode) {
-      loadWards(provinceCode);
-    }
-  };
-
-  const handleWardChange = (e) => {
-    const wardCode = e.target.value;
-    setSelectedWard(wardCode);
-  };
+  }, [editingProperty, isOpen]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -150,11 +63,11 @@ const AddPropertyModal = ({ isOpen, onClose, onSuccess, editingProperty }) => {
       newErrors.address = "Địa chỉ là bắt buộc";
     }
 
-    if (!selectedProvince) {
+    if (!formData.city.trim()) {
       newErrors.city = "Tỉnh/Thành phố là bắt buộc";
     }
 
-    if (!selectedWard) {
+    if (!formData.ward.trim()) {
       newErrors.ward = "Phường/Xã là bắt buộc";
     }
 
@@ -181,63 +94,11 @@ const AddPropertyModal = ({ isOpen, onClose, onSuccess, editingProperty }) => {
     setIsLoading(true);
 
     try {
-      console.log("Form data:", formData);
-      console.log("User:", user);
-
-      // Lấy tên tỉnh và phường/xã từ selected values
-      console.log("Debug - selectedProvince:", selectedProvince);
-      console.log("Debug - selectedWard:", selectedWard);
-      console.log("Debug - provinces:", provinces);
-      console.log("Debug - wards:", wards);
-
-      // Kiểm tra xem data đã load chưa
-      if (provinces.length === 0) {
-        alert("Đang tải danh sách tỉnh/thành phố. Vui lòng thử lại sau.");
-        setIsLoading(false);
-        return;
-      }
-
-      if (wards.length === 0) {
-        alert("Đang tải danh sách phường/xã. Vui lòng thử lại sau.");
-        setIsLoading(false);
-        return;
-      }
-
-      const selectedProvinceData = provinces.find(
-        (p) => p.code == selectedProvince
-      );
-      const selectedWardData = wards.find((w) => w.code == selectedWard);
-
-      console.log("Debug - selectedProvinceData:", selectedProvinceData);
-      console.log("Debug - selectedWardData:", selectedWardData);
-
-      // Validation để đảm bảo dữ liệu không null
-      if (!selectedProvinceData) {
-        console.error("selectedProvinceData is null!");
-        console.error("selectedProvince:", selectedProvince);
-        console.error("provinces array:", provinces);
-        console.error("provinces length:", provinces.length);
-        alert("Vui lòng chọn tỉnh/thành phố");
-        setIsLoading(false);
-        return;
-      }
-
-      if (!selectedWardData) {
-        console.error("selectedWardData is null!");
-        console.error("selectedWard:", selectedWard);
-        console.error("wards array:", wards);
-        console.error("wards length:", wards.length);
-        alert("Vui lòng chọn phường/xã");
-        setIsLoading(false);
-        return;
-      }
-
       const propertyData = {
         name: formData.name.trim(),
         address: formData.address.trim(),
-        city: selectedProvinceData.name,
-        district: null, // Không sử dụng quận/huyện nữa
-        ward: selectedWardData.name,
+        city: formData.city.trim(),
+        ward: formData.ward.trim(),
         description: formData.description.trim() || null,
         owner_id: user?.userId || user?.id,
       };
@@ -263,10 +124,7 @@ const AddPropertyModal = ({ isOpen, onClose, onSuccess, editingProperty }) => {
         name: "",
         address: "",
         city: "",
-        district: "",
         ward: "",
-        latitude: "",
-        longitude: "",
         description: "",
       });
 
@@ -284,14 +142,10 @@ const AddPropertyModal = ({ isOpen, onClose, onSuccess, editingProperty }) => {
       name: "",
       address: "",
       city: "",
-      district: "",
       ward: "",
       description: "",
     });
     setErrors({});
-    setSelectedProvince("");
-    setSelectedWard("");
-    setWards([]);
     onClose();
   };
 
@@ -355,23 +209,16 @@ const AddPropertyModal = ({ isOpen, onClose, onSuccess, editingProperty }) => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Tỉnh/Thành phố <span className="text-red-500">*</span>
               </label>
-              <select
-                value={selectedProvince}
-                onChange={handleProvinceChange}
+              <input
+                type="text"
+                name="city"
+                value={formData.city}
+                onChange={handleInputChange}
                 className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
                   errors.city ? "border-red-500" : "border-gray-300"
                 }`}
-                disabled={loadingProvinces}
-              >
-                <option value="">
-                  {loadingProvinces ? "Đang tải..." : "Chọn tỉnh/thành phố"}
-                </option>
-                {provinces.map((province) => (
-                  <option key={province.code} value={province.code}>
-                    {province.name}
-                  </option>
-                ))}
-              </select>
+                placeholder="Nhập tỉnh/thành phố"
+              />
               {errors.city && (
                 <p className="mt-1 text-sm text-red-600">{errors.city}</p>
               )}
@@ -381,27 +228,16 @@ const AddPropertyModal = ({ isOpen, onClose, onSuccess, editingProperty }) => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Phường/Xã <span className="text-red-500">*</span>
               </label>
-              <select
-                value={selectedWard}
-                onChange={handleWardChange}
+              <input
+                type="text"
+                name="ward"
+                value={formData.ward}
+                onChange={handleInputChange}
                 className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
                   errors.ward ? "border-red-500" : "border-gray-300"
                 }`}
-                disabled={!selectedProvince || loadingWards}
-              >
-                <option value="">
-                  {loadingWards
-                    ? "Đang tải..."
-                    : !selectedProvince
-                    ? "Chọn tỉnh/thành phố trước"
-                    : "Chọn phường/xã"}
-                </option>
-                {wards.map((ward) => (
-                  <option key={ward.code} value={ward.code}>
-                    {ward.name}
-                  </option>
-                ))}
-              </select>
+                placeholder="Nhập phường/xã"
+              />
               {errors.ward && (
                 <p className="mt-1 text-sm text-red-600">{errors.ward}</p>
               )}
@@ -456,7 +292,13 @@ const AddPropertyModal = ({ isOpen, onClose, onSuccess, editingProperty }) => {
               disabled={isLoading}
               className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {isLoading ? "Đang tạo..." : "Tạo nhà trọ"}
+              {isLoading
+                ? editingProperty
+                  ? "Đang cập nhật..."
+                  : "Đang tạo..."
+                : editingProperty
+                ? "Cập nhật nhà trọ"
+                : "Tạo nhà trọ"}
             </button>
           </div>
         </form>

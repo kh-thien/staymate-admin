@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useTenants } from "../hooks/useTenants";
 import { tenantService } from "../services/tenantService";
 import TenantsTable from "../components/TenantsTable";
@@ -20,11 +20,24 @@ const TenantsPage = () => {
 
   // Filters and search
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("active");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [roomFilter, setRoomFilter] = useState("all");
   const [propertyFilter, setPropertyFilter] = useState("all");
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("desc");
+
+  // Memoize filters object để tránh re-create mỗi lần render
+  const filters = useMemo(
+    () => ({
+      search: searchTerm,
+      status: statusFilter,
+      room: roomFilter,
+      property: propertyFilter,
+      sortBy,
+      sortOrder,
+    }),
+    [searchTerm, statusFilter, roomFilter, propertyFilter, sortBy, sortOrder]
+  );
 
   // Hooks
   const {
@@ -35,14 +48,34 @@ const TenantsPage = () => {
     updateTenant,
     deleteTenant,
     refreshTenants,
-  } = useTenants({
-    search: searchTerm,
-    status: statusFilter,
-    room: roomFilter,
-    property: propertyFilter,
-    sortBy,
-    sortOrder,
+    getTenantStats,
+  } = useTenants(filters);
+
+  // Statistics state (tổng số tổng thể, không phụ thuộc filter)
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    inactive: 0,
   });
+
+  // Load statistics (tổng số tổng thể, không phụ thuộc filter)
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const statsData = await getTenantStats();
+        setStats({
+          total: statsData.total || 0,
+          active: statsData.active || 0,
+          inactive: statsData.inactive || 0,
+        });
+      } catch (error) {
+        console.error("Error loading stats:", error);
+      }
+    };
+    if (getTenantStats) {
+      loadStats();
+    }
+  }, [getTenantStats]);
 
   // Handlers
   const handleAddTenant = () => {
@@ -83,7 +116,13 @@ const TenantsPage = () => {
 
       if (window.confirm(confirmMessage)) {
         await deleteTenant(tenant.id);
-        // Data will be refreshed automatically by deleteTenant
+        // Refresh statistics sau khi xóa
+        const statsData = await getTenantStats();
+        setStats({
+          total: statsData.total || 0,
+          active: statsData.active || 0,
+          inactive: statsData.inactive || 0,
+        });
       }
     } catch (error) {
       console.error("Error deleting tenant:", error);
@@ -99,15 +138,24 @@ const TenantsPage = () => {
         await createTenant(tenantData);
       }
 
-      // Refresh data
+      // Refresh data và statistics
       await refreshTenants();
+      // Refresh statistics
+      const statsData = await getTenantStats();
+      setStats({
+        total: statsData.total || 0,
+        active: statsData.active || 0,
+        inactive: statsData.inactive || 0,
+      });
 
-      // Close modal
+      // Close modal - chỉ đóng khi thành công (không có error)
       setShowAddModal(false);
       setShowEditModal(false);
       setEditingTenant(null);
     } catch (error) {
       console.error("Error saving tenant:", error);
+      // Không đóng modal khi có lỗi, để AddTenantModal có thể hiển thị error
+      // Re-throw error để AddTenantModal có thể catch và hiển thị
       throw error;
     }
   };
@@ -135,23 +183,11 @@ const TenantsPage = () => {
     }
   };
 
-  // Statistics
-  const getStats = () => {
-    const total = tenants.length;
-    const active = tenants.filter((t) => t.is_active).length;
-    const inactive = tenants.filter((t) => !t.is_active).length;
-    const byGender = {
-      male: tenants.filter((t) => t.gender === "Nam").length,
-      female: tenants.filter((t) => t.gender === "Nữ").length,
-      other: tenants.filter((t) => t.gender === "Khác").length,
-    };
 
-    return { total, active, inactive, byGender };
-  };
+  // Chỉ hiển thị loading spinner khi initial load (chưa có data)
+  const isInitialLoad = loading && tenants.length === 0;
 
-  const stats = getStats();
-
-  if (loading) {
+  if (isInitialLoad) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -174,55 +210,72 @@ const TenantsPage = () => {
   }
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Quản lý người thuê
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Quản lý thông tin và hợp đồng của người thuê
-            </p>
-          </div>
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={() => setShowExportModal(true)}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+    <div className="space-y-6">
+      {/* Header - TailAdmin style */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Người thuê</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Quản lý thông tin người thuê
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="inline-flex items-center px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+          >
+            <svg
+              className="w-4 h-4 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              <svg
-                className="w-4 h-4 inline mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              Xuất dữ liệu
-            </button>
-            <button
-              onClick={handleAddTenant}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+            Xuất
+          </button>
+          <button
+            onClick={handleAddTenant}
+            className="inline-flex items-center px-4 py-2.5 bg-[#3C50E0] text-white rounded-lg text-sm font-medium hover:bg-[#3347C6] transition-colors"
+          >
+            <svg
+              className="w-4 h-4 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              + Thêm người thuê
-            </button>
-          </div>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            Thêm mới
+          </button>
         </div>
       </div>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-3 bg-blue-100 rounded-lg">
+      {/* Statistics - TailAdmin compact style */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase">
+                Tổng số
+              </p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">
+                {stats.total}
+              </p>
+            </div>
+            <div className="w-11 h-11 bg-blue-50 rounded-full flex items-center justify-center">
               <svg
-                className="w-6 h-6 text-blue-600"
+                className="w-5 h-5 text-blue-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -231,22 +284,26 @@ const TenantsPage = () => {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-5.523-4.477-10-10-10S-3 12.477-3 18v2h20z"
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
                 />
               </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Tổng số</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-3 bg-green-100 rounded-lg">
+        <div className="bg-white rounded-lg border border-gray-200 p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase">
+                Đang ở
+              </p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">
+                {stats.active}
+              </p>
+            </div>
+            <div className="w-11 h-11 bg-green-50 rounded-full flex items-center justify-center">
               <svg
-                className="w-6 h-6 text-green-600"
+                className="w-5 h-5 text-green-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -259,44 +316,22 @@ const TenantsPage = () => {
                 />
               </svg>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Đang ở</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
-            </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-3 bg-red-100 rounded-lg">
-              <svg
-                className="w-6 h-6 text-red-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Đã chuyển</p>
-              <p className="text-2xl font-bold text-gray-900">
+        <div className="bg-white rounded-lg border border-gray-200 p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase">
+                Chưa có phòng
+              </p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">
                 {stats.inactive}
               </p>
             </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-3 bg-purple-100 rounded-lg">
+            <div className="w-11 h-11 bg-gray-50 rounded-full flex items-center justify-center">
               <svg
-                className="w-6 h-6 text-purple-600"
+                className="w-5 h-5 text-gray-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -305,22 +340,16 @@ const TenantsPage = () => {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+                  d="M6 18L18 6M6 6l12 12"
                 />
               </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Nam/Nữ</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {stats.byGender.male}/{stats.byGender.female}
-              </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Filters and Search */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+      {/* Filters and Search - TailAdmin style */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
         <TenantFilters
           onFilterChange={handleFilterChange}
           onSearch={handleSearch}
@@ -365,12 +394,20 @@ const TenantsPage = () => {
           )}
         />
       ) : (
-        <TenantsTable
-          tenants={tenants}
-          onEdit={handleEditTenant}
-          onView={handleViewTenant}
-          onDelete={handleDeleteTenant}
-        />
+        <div className="relative">
+          {loading && (
+            <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          )}
+          <TenantsTable
+            tenants={tenants}
+            onEdit={handleEditTenant}
+            onView={handleViewTenant}
+            onDelete={handleDeleteTenant}
+            loading={loading}
+          />
+        </div>
       )}
 
       {/* Modals */}

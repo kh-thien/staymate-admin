@@ -8,14 +8,14 @@ const ActionButtons = ({
   deleteReason = "",
 }) => {
   return (
-    <div className="flex items-center justify-center space-x-2">
+    <div className="flex items-center justify-center gap-1">
       <button
         onClick={onView}
-        className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
         title="Xem chi tiết"
       >
         <svg
-          className="w-4 h-4 mr-1"
+          className="w-4 h-4"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -33,15 +33,14 @@ const ActionButtons = ({
             d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
           />
         </svg>
-        Chi tiết
       </button>
       <button
         onClick={onEdit}
-        className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+        className="p-1.5 text-gray-600 hover:bg-gray-100 rounded transition-colors"
         title="Chỉnh sửa"
       >
         <svg
-          className="w-4 h-4 mr-1"
+          className="w-4 h-4"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -53,20 +52,19 @@ const ActionButtons = ({
             d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
           />
         </svg>
-        Sửa
       </button>
       <button
         onClick={onDelete}
         disabled={!canDelete}
-        className={`inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+        className={`p-1.5 rounded transition-colors ${
           canDelete
-            ? "text-red-600 bg-red-50 hover:bg-red-100"
-            : "text-gray-400 bg-gray-100 cursor-not-allowed"
+            ? "text-red-600 hover:bg-red-50"
+            : "text-gray-400 cursor-not-allowed"
         }`}
         title={canDelete ? "Xóa" : deleteReason || "Không thể xóa"}
       >
         <svg
-          className="w-4 h-4 mr-1"
+          className="w-4 h-4"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"

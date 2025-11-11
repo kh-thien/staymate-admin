@@ -245,14 +245,12 @@ const RoomDetailModal = ({ isOpen, onClose, room, onEdit, onDelete }) => {
                                 </div>
                                 <div>
                                   <label className="text-gray-600">
-                                    Ngày chuyển vào:
+                                    Trạng thái:
                                   </label>
                                   <p className="text-gray-900">
-                                    {tenant.move_in_date
-                                      ? new Date(
-                                          tenant.move_in_date
-                                        ).toLocaleDateString("vi-VN")
-                                      : "N/A"}
+                                    {tenant.is_active && tenant.active_in_room
+                                      ? "Đang ở"
+                                      : "Không hoạt động"}
                                   </p>
                                 </div>
                               </div>

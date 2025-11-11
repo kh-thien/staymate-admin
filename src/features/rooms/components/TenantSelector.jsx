@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { tenantService } from "../../tenants/services/tenantService";
+import { useAuth } from "../../auth/context/useAuth";
 
 const TenantSelector = ({ onSelectTenant, selectedTenant, onClear }) => {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [tenants, setTenants] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -18,6 +20,8 @@ const TenantSelector = ({ onSelectTenant, selectedTenant, onClear }) => {
 
       setLoading(true);
       try {
+        // Search tenants - RLS sẽ tự động filter theo user và properties của họ
+        // Chỉ hiển thị: tenants mà user tạo, tenants chưa có phòng, hoặc tenants trong properties của user
         const data = await tenantService.searchTenants(searchTerm);
         setTenants(data);
         setShowDropdown(true);
@@ -125,12 +129,12 @@ const TenantSelector = ({ onSelectTenant, selectedTenant, onClear }) => {
                 <div className="flex-shrink-0">
                   <span
                     className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      tenant.is_active
+                      tenant.active_in_room
                         ? "bg-green-100 text-green-800"
-                        : "bg-red-100 text-red-800"
+                        : "bg-gray-100 text-gray-800"
                     }`}
                   >
-                    {tenant.is_active ? "Đang ở" : "Đã chuyển"}
+                    {tenant.active_in_room ? "Đang ở" : "Chưa có phòng"}
                   </span>
                 </div>
               </div>

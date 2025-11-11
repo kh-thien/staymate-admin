@@ -84,7 +84,6 @@ const ViewControls = ({
         <select className="text-sm border border-gray-300 rounded-md px-3 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
           <option value="created_at">Mới nhất</option>
           <option value="fullname">Tên A-Z</option>
-          <option value="move_in_date">Ngày chuyển vào</option>
           <option value="birthdate">Tuổi</option>
         </select>
       </div>

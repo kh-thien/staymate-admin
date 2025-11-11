@@ -4,7 +4,18 @@ export const serviceService = {
   // Get all services with filters
   async getServices(filters = {}) {
     try {
-      let query = supabase.from("services").select("*");
+      // JOIN with properties to get property info
+      let query = supabase.from("services").select(`
+          *,
+          properties:property_id (
+            id,
+            name,
+            address,
+            ward,
+            city,
+            is_active
+          )
+        `);
 
       // Apply filters
       if (filters.serviceType && filters.serviceType !== "all") {
@@ -19,6 +30,11 @@ export const serviceService = {
 
       if (filters.isMetered !== undefined) {
         query = query.eq("is_metered", filters.isMetered);
+      }
+
+      // Filter by property_id
+      if (filters.propertyId) {
+        query = query.eq("property_id", filters.propertyId);
       }
 
       // Apply sorting
@@ -42,7 +58,19 @@ export const serviceService = {
     try {
       const { data, error } = await supabase
         .from("services")
-        .select("*")
+        .select(
+          `
+          *,
+          properties:property_id (
+            id,
+            name,
+            address,
+            ward,
+            city,
+            is_active
+          )
+        `
+        )
         .eq("id", id)
         .single();
 
@@ -57,6 +85,11 @@ export const serviceService = {
   // Create new service
   async createService(serviceData) {
     try {
+      // property_id should come from form (required field)
+      if (!serviceData.property_id) {
+        throw new Error("property_id is required");
+      }
+
       const { data, error } = await supabase
         .from("services")
         .insert([serviceData])
@@ -115,33 +148,30 @@ export const serviceService = {
     }
   },
 
-  // Get service types
+  // Get service types (✅ Fixed to match DB ENUM)
   getServiceTypes() {
     return [
-      { value: "ELECTRICITY", label: "Điện" },
-      { value: "WATER", label: "Nước" },
-      { value: "INTERNET", label: "Internet" },
-      { value: "CLEANING", label: "Vệ sinh" },
-      { value: "SECURITY", label: "An ninh" },
-      { value: "PARKING", label: "Gửi xe" },
-      { value: "MAINTENANCE", label: "Bảo trì" },
-      { value: "OTHER", label: "Khác" },
+      { value: "ELECTRIC", label: "⚡ Điện", icon: "⚡" },
+      { value: "WATER", label: "💧 Nước", icon: "💧" },
+      { value: "WIFI", label: "📡 Internet/Wifi", icon: "📡" },
+      { value: "PARKING", label: "🚗 Gửi xe", icon: "🚗" },
+      { value: "OTHER", label: "📝 Khác", icon: "📝" },
     ];
   },
 
   // Get service statistics
   async getServiceStats() {
     try {
-      const { data: totalServices } = await supabase
+      const { count: totalServices } = await supabase
         .from("services")
         .select("*", { count: "exact", head: true });
 
-      const { data: meteredServices } = await supabase
+      const { count: meteredServices } = await supabase
         .from("services")
         .select("*", { count: "exact", head: true })
         .eq("is_metered", true);
 
-      const { data: unmeteredServices } = await supabase
+      const { count: unmeteredServices } = await supabase
         .from("services")
         .select("*", { count: "exact", head: true })
         .eq("is_metered", false);
@@ -158,9 +188,9 @@ export const serviceService = {
       });
 
       return {
-        total: totalServices?.length || 0,
-        metered: meteredServices?.length || 0,
-        unmetered: unmeteredServices?.length || 0,
+        total: totalServices || 0,
+        metered: meteredServices || 0,
+        unmetered: unmeteredServices || 0,
         typeDistribution,
       };
     } catch (error) {

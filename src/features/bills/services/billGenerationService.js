@@ -181,16 +181,28 @@ export const billGenerationService = {
         if (shouldCreateBill) {
           // Tính số tiền dựa trên chu kỳ
           let amount = contract.monthly_rent;
-          if (contract.payment_cycle === "QUARTERLY") {
+          let billName = "";
+          
+          if (contract.payment_cycle === "MONTHLY") {
+            const month = periodStart.getMonth() + 1;
+            const year = periodStart.getFullYear();
+            billName = `Hóa đơn tiền thuê tháng ${month}/${year}`;
+          } else if (contract.payment_cycle === "QUARTERLY") {
             amount = contract.monthly_rent * 3; // 3 tháng
+            const quarter = Math.floor(periodStart.getMonth() / 3) + 1;
+            const year = periodStart.getFullYear();
+            billName = `Hóa đơn tiền thuê quý ${quarter}/${year}`;
           } else if (contract.payment_cycle === "YEARLY") {
             amount = contract.monthly_rent * 12; // 12 tháng
+            const year = periodStart.getFullYear();
+            billName = `Hóa đơn tiền thuê năm ${year}`;
           }
 
           const billData = {
             contract_id: contract.id,
             room_id: contract.room_id,
             tenant_id: contract.tenant_id,
+            name: billName,
             bill_number: await billService.generateBillNumber(),
             period_start: periodStart.toISOString().split("T")[0],
             period_end: periodEnd.toISOString().split("T")[0],
@@ -311,11 +323,17 @@ export const billGenerationService = {
       const periodStart = new Date(currentYear, currentMonth, 1);
       const periodEnd = new Date(currentYear, currentMonth + 1, 0); // Ngày cuối tháng
 
+      // Tạo tên hóa đơn
+      const month = currentMonth + 1;
+      const year = currentYear;
+      const billName = `Hóa đơn tiền thuê tháng ${month}/${year}`;
+      
       // Tạo bill data
       const billData = {
         contract_id: contract.id,
         room_id: contract.room_id,
         tenant_id: contract.tenant_id,
+        name: billName,
         bill_number: await billService.generateBillNumber(),
         period_start: periodStart.toISOString().split("T")[0],
         period_end: periodEnd.toISOString().split("T")[0],
@@ -420,11 +438,17 @@ export const billGenerationService = {
         const periodStart = new Date(currentYear, currentMonth, 1);
         const periodEnd = new Date(currentYear, currentMonth + 1, 0); // Ngày cuối tháng
 
+        // Tạo tên hóa đơn
+        const month = currentMonth + 1;
+        const year = currentYear;
+        const billName = `Hóa đơn tiền thuê tháng ${month}/${year}`;
+
         // Tạo bill data
         const billData = {
           contract_id: contract.id,
           room_id: contract.room_id,
           tenant_id: contract.tenant_id,
+          name: billName,
           bill_number: await billService.generateBillNumber(),
           period_start: periodStart.toISOString().split("T")[0],
           period_end: periodEnd.toISOString().split("T")[0],

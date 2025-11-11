@@ -101,7 +101,12 @@ const TerminateContractModal = ({ isOpen, onClose, onSubmit, contract }) => {
                   Kết thúc hợp đồng
                 </h2>
                 <p className="text-sm text-gray-600">
-                  Hành động này sẽ chuyển hợp đồng sang trạng thái "Đã hết hạn"
+                  Hành động này sẽ chuyển hợp đồng sang trạng thái kết thúc
+                  {formData.reason === "Hết hạn hợp đồng"
+                    ? ' "Đã hết hạn"'
+                    : formData.reason
+                    ? ' "Đã chấm dứt"'
+                    : ""}
                 </p>
               </div>
             </div>
@@ -158,54 +163,29 @@ const TerminateContractModal = ({ isOpen, onClose, onSubmit, contract }) => {
                     {contract.rooms?.properties?.name}
                   </p>
                   <p className="text-sm text-gray-600">
-                    Ngày kết thúc hiện tại:{" "}
-                    {new Date(contract.end_date).toLocaleDateString("vi-VN")}
+                    Ngày kết thúc theo hợp đồng:{" "}
+                    {contract.end_date
+                      ? new Date(contract.end_date).toLocaleDateString("vi-VN")
+                      : "Chưa có"}
                   </p>
+                  {contract.terminated_date && (
+                    <p className="text-sm text-gray-600">
+                      Ngày chấm dứt thực tế:{" "}
+                      {new Date(contract.terminated_date).toLocaleDateString("vi-VN")}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
           )}
 
-          {/* Warning */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg
-                  className="h-5 w-5 text-yellow-400"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-yellow-800">
-                  Cảnh báo quan trọng
-                </h3>
-                <div className="mt-2 text-sm text-yellow-700">
-                  <ul className="list-disc list-inside space-y-1">
-                    <li>Hợp đồng sẽ chuyển sang trạng thái "Đã hết hạn"</li>
-                    <li>
-                      Người thuê sẽ được thông báo về việc kết thúc hợp đồng
-                    </li>
-                    <li>Hành động này không thể hoàn tác</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-6">
-              {/* Ngày kết thúc */}
+              {/* Ngày chấm dứt */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Ngày kết thúc hợp đồng <span className="text-red-500">*</span>
+                  Ngày chấm dứt hợp đồng <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
@@ -219,9 +199,6 @@ const TerminateContractModal = ({ isOpen, onClose, onSubmit, contract }) => {
                 {errors.endDate && (
                   <p className="text-red-500 text-sm mt-1">{errors.endDate}</p>
                 )}
-                <p className="text-sm text-gray-500 mt-1">
-                  Ngày mà hợp đồng sẽ chính thức kết thúc
-                </p>
               </div>
 
               {/* Lý do kết thúc */}
@@ -263,9 +240,56 @@ const TerminateContractModal = ({ isOpen, onClose, onSubmit, contract }) => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   placeholder="Nhập thông tin bổ sung về việc kết thúc hợp đồng..."
                 />
-                <p className="text-sm text-gray-500 mt-1">
-                  Thông tin này sẽ được lưu trong lịch sử hợp đồng
-                </p>
+              </div>
+
+              {/* Warning */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg
+                      className="h-5 w-5 text-yellow-400"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-yellow-800">
+                      Cảnh báo quan trọng
+                    </h3>
+                    <div className="mt-2 text-sm text-yellow-700">
+                      <ul className="list-disc list-inside space-y-1">
+                        {formData.endDate &&
+                          contract?.end_date &&
+                          new Date(formData.endDate) < new Date(contract.end_date) && (
+                            <li className="font-semibold">
+                              Hợp đồng này đang được kết thúc sớm hơn dự kiến
+                            </li>
+                          )}
+                        <li>
+                          Hợp đồng sẽ chuyển sang trạng thái{" "}
+                          <span className="font-semibold">
+                            {formData.reason === "Hết hạn hợp đồng"
+                              ? '"Đã hết hạn"'
+                              : '"Đã chấm dứt"'}
+                          </span>
+                          {formData.reason
+                            ? ` (${formData.reason})`
+                            : " (tùy theo lý do kết thúc)"}
+                        </li>
+                        <li>
+                          Người thuê sẽ được thông báo về việc kết thúc hợp đồng
+                        </li>
+                        <li>Hành động này không thể hoàn tác</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 

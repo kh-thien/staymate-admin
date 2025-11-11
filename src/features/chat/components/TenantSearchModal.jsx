@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   MagnifyingGlassIcon,
   UserIcon,
   PhoneIcon,
   EnvelopeIcon,
   XMarkIcon,
+  HomeIcon,
 } from "@heroicons/react/24/outline";
+import { chatService } from "../services/chatService";
 
 const TenantSearchModal = ({ isOpen, onClose, onSelectTenant }) => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -13,44 +15,8 @@ const TenantSearchModal = ({ isOpen, onClose, onSelectTenant }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Mock data for now - will be replaced with actual API call
-  const mockTenants = [
-    {
-      id: "1",
-      fullname: "Nguyễn Văn A",
-      email: "nguyenvana@email.com",
-      phone: "0123456789",
-      account_status: "ACTIVE",
-      user_id: "user-1",
-      rooms: {
-        code: "A101",
-        name: "Phòng A101",
-        properties: {
-          name: "Chung cư ABC",
-          address: "123 Đường ABC, Quận 1, TP.HCM",
-        },
-      },
-    },
-    {
-      id: "2",
-      fullname: "Trần Thị B",
-      email: "tranthib@email.com",
-      phone: "0987654321",
-      account_status: "ACTIVE",
-      user_id: "user-2",
-      rooms: {
-        code: "B202",
-        name: "Phòng B202",
-        properties: {
-          name: "Chung cư XYZ",
-          address: "456 Đường XYZ, Quận 2, TP.HCM",
-        },
-      },
-    },
-  ];
-
-  // Search tenants
-  const searchTenants = async (term) => {
+  // Search tenants using real API
+  const searchTenants = useCallback(async (term) => {
     if (!term || !term.trim()) {
       setTenants([]);
       return;
@@ -60,24 +26,15 @@ const TenantSearchModal = ({ isOpen, onClose, onSelectTenant }) => {
     setError(null);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      const filtered = mockTenants.filter(
-        (tenant) =>
-          tenant.fullname.toLowerCase().includes(term.toLowerCase()) ||
-          tenant.email.toLowerCase().includes(term.toLowerCase()) ||
-          tenant.phone.includes(term)
-      );
-
-      setTenants(filtered);
+      const results = await chatService.searchTenantsForChat(term);
+      setTenants(results);
     } catch (err) {
       console.error("Error searching tenants:", err);
-      setError("Lỗi khi tìm kiếm người thuê");
+      setError("Lỗi khi tìm kiếm người thuê: " + err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Debounce search
   useEffect(() => {
@@ -86,7 +43,7 @@ const TenantSearchModal = ({ isOpen, onClose, onSelectTenant }) => {
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
+  }, [searchTerm, searchTenants]);
 
   // Reset when modal closes
   useEffect(() => {

@@ -7,22 +7,22 @@ const ViewControls = ({
   onGridColumnsChange,
 }) => {
   return (
-    <div className="flex items-center justify-between mb-6">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       {/* View Mode Controls */}
-      <div className="flex items-center space-x-4">
-        <span className="text-sm font-medium text-gray-700">Hiển thị:</span>
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-medium text-gray-600">Hiển thị:</span>
 
         {/* Grid View Button */}
         <button
           onClick={() => onViewModeChange("grid")}
-          className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+          className={`flex items-center px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
             viewMode === "grid"
-              ? "bg-blue-100 text-blue-700 border border-blue-200"
+              ? "bg-[#3C50E0] text-white"
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           }`}
         >
           <svg
-            className="w-4 h-4 mr-2"
+            className="w-3.5 h-3.5 mr-1.5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -40,14 +40,14 @@ const ViewControls = ({
         {/* Table View Button */}
         <button
           onClick={() => onViewModeChange("table")}
-          className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+          className={`flex items-center px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
             viewMode === "table"
-              ? "bg-blue-100 text-blue-700 border border-blue-200"
+              ? "bg-[#3C50E0] text-white"
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           }`}
         >
           <svg
-            className="w-4 h-4 mr-2"
+            className="w-3.5 h-3.5 mr-1.5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -65,18 +65,18 @@ const ViewControls = ({
 
       {/* Grid Columns Control (only show when grid mode) */}
       {viewMode === "grid" && (
-        <div className="flex items-center space-x-2">
-          <span className="text-sm font-medium text-gray-700">Cột:</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-gray-600">Cột:</span>
           <select
             value={gridColumns}
             onChange={(e) => onGridColumnsChange(parseInt(e.target.value))}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-[#3C50E0] focus:border-[#3C50E0]"
           >
-            <option value={1}>1 cột</option>
-            <option value={2}>2 cột</option>
-            <option value={3}>3 cột</option>
-            <option value={4}>4 cột</option>
-            <option value={5}>5 cột</option>
+            <option value={1}>1</option>
+            <option value={2}>2</option>
+            <option value={3}>3</option>
+            <option value={4}>4</option>
+            <option value={5}>5</option>
           </select>
         </div>
       )}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { billService } from "../services/billService";
+import { supabase } from "../../../core/data/remote/supabase";
 
 export const useBills = (filters = {}) => {
   const [bills, setBills] = useState([]);
@@ -72,9 +73,85 @@ export const useBills = (filters = {}) => {
     fetchBills();
   };
 
+  // Initial fetch
   useEffect(() => {
     fetchBills();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(filters)]);
+
+  // Realtime subscription (matching chat pattern)
+  useEffect(() => {
+    const isDev = import.meta.env.DEV;
+
+    if (isDev) {
+      console.log("🔔 Setting up realtime subscription for bills...");
+    }
+
+    const channel = supabase
+      .channel("bills-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "bills",
+        },
+        (payload) => {
+          console.log("➕ REALTIME: New bill created:", payload.new);
+          // Refresh to get full data with relationships
+          fetchBills();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "bills",
+        },
+        (payload) => {
+          console.log("✏️ REALTIME: Bill updated:", payload.new);
+          // Refresh to get full data with relationships
+          fetchBills();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "bills",
+        },
+        (payload) => {
+          console.log("🗑️ REALTIME: Bill deleted:", payload.old);
+          setBills((prev) => prev.filter((bill) => bill.id !== payload.old.id));
+        }
+      )
+      .subscribe((status) => {
+        console.log("📡 REALTIME Subscription status:", status);
+
+        if (status === "SUBSCRIBED") {
+          console.log(
+            "✅ Bills realtime: SUBSCRIBED and ready to receive events!"
+          );
+        } else if (status === "CHANNEL_ERROR") {
+          console.error(
+            "❌ Bills realtime CHANNEL_ERROR - check Supabase Dashboard"
+          );
+        } else if (status === "TIMED_OUT") {
+          console.error("⏱️ Bills realtime TIMED_OUT");
+        }
+      });
+
+    // Cleanup subscription on unmount
+    return () => {
+      if (isDev) {
+        console.log("🔕 Cleaning up bills realtime subscription");
+      }
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only setup once
 
   return {
     bills,

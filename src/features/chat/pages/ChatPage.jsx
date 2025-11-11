@@ -3,6 +3,9 @@ import { useChat } from "../hooks/useChat";
 import ChatList from "../components/ChatList";
 import ChatWindow from "../components/ChatWindow";
 import TenantSearchModal from "../components/TenantSearchModal";
+import { supabase } from "../../../core/data/remote/supabase";
+import { chatService } from "../services/chatService";
+import { useAppLayout } from "../../appLayout/context/useAppLayout";
 
 const ChatPage = () => {
   const {
@@ -10,12 +13,16 @@ const ChatPage = () => {
     currentRoom,
     messages,
     loading,
+    loadingMore,
+    hasMore,
     error,
     sendMessage,
     selectRoom,
     loadRooms,
+    loadMoreMessages,
   } = useChat();
 
+  const { sidebarOpen } = useAppLayout();
   const [showMobileList, setShowMobileList] = useState(true);
   const [showTenantSearch, setShowTenantSearch] = useState(false);
 
@@ -45,21 +52,51 @@ const ChatPage = () => {
 
   const handleSelectTenant = async (tenant) => {
     try {
-      // TODO: Implement create chat room with tenant
-      console.log("Selected tenant:", tenant);
-      setShowTenantSearch(false);
+      // Get current admin user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
+      // Create or get chat room with tenant
+      const result = await chatService.createChatRoomWithTenant(
+        tenant.user_id, // tenant's user_id
+        user.id // admin's user_id
+      );
+
+      if (result.success) {
+        // Reload rooms list to include the new/existing room
+        await loadRooms();
+
+        // Select and open the room
+        await selectRoom(result.room);
+
+        // Close search modal
+        setShowTenantSearch(false);
+
+        // Switch to chat view on mobile
+        setShowMobileList(false);
+      }
     } catch (error) {
       console.error("Error creating chat room:", error);
+      alert("Không thể tạo phòng chat: " + error.message);
     }
   };
 
   if (error) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <div
+        className={`fixed inset-0 top-16 right-0 flex items-center justify-center bg-[#F1F5F9] z-20 transition-all duration-300 ${
+          sidebarOpen ? "lg:left-72" : "lg:left-0"
+        }`}
+      >
+        <div className="text-center bg-white rounded-lg border border-gray-200 p-8 shadow-sm">
+          <div className="w-14 h-14 bg-red-50 rounded-lg flex items-center justify-center mx-auto mb-4">
             <svg
-              className="w-8 h-8 text-red-600"
+              className="w-7 h-7 text-red-600"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -72,13 +109,13 @@ const ChatPage = () => {
               />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <h3 className="text-base font-semibold text-gray-900 mb-2">
             Lỗi tải dữ liệu
           </h3>
-          <p className="text-gray-600 mb-4">{error}</p>
+          <p className="text-sm text-gray-600 mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-[#3C50E0] text-white rounded-lg hover:bg-[#3347C6] transition-colors text-sm font-medium"
           >
             Thử lại
           </button>
@@ -88,12 +125,16 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative">
-      {/* Chat Interface */}
-      <div className="h-full flex p-4">
-        <div className="flex-1 flex bg-white shadow-2xl rounded-3xl overflow-hidden">
+    <div
+      className={`fixed inset-0 top-16 right-0 bg-[#F1F5F9] flex flex-col overflow-hidden z-20 transition-all duration-300 ${
+        sidebarOpen ? "lg:left-72" : "lg:left-0"
+      }`}
+    >
+      {/* Chat Interface - TailAdmin modern style with spacing and rounded corners */}
+      <div className="flex-1 flex min-h-0 h-full p-8">
+        <div className="flex-1 flex min-h-0 rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-white">
           {/* Desktop Layout */}
-          <div className="hidden lg:flex flex-1">
+          <div className="hidden lg:flex w-full h-full min-h-0">
             <ChatList
               rooms={rooms}
               currentRoom={currentRoom}
@@ -106,11 +147,14 @@ const ChatPage = () => {
               messages={messages}
               onSendMessage={handleSendMessage}
               loading={loading}
+              loadingMore={loadingMore}
+              hasMore={hasMore}
+              onLoadMore={loadMoreMessages}
             />
           </div>
 
           {/* Mobile Layout */}
-          <div className="lg:hidden flex-1 flex">
+          <div className="lg:hidden w-full h-full min-h-0">
             {showMobileList ? (
               <ChatList
                 rooms={rooms}
@@ -126,21 +170,14 @@ const ChatPage = () => {
                 onSendMessage={handleSendMessage}
                 onBack={handleBackToList}
                 loading={loading}
+                loadingMore={loadingMore}
+                hasMore={hasMore}
+                onLoadMore={loadMoreMessages}
               />
             )}
           </div>
         </div>
       </div>
-
-      {/* Loading Overlay */}
-      {loading && (
-        <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50 rounded-3xl m-4">
-          <div className="flex flex-col items-center">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-3"></div>
-            <p className="text-sm text-gray-600 font-medium">Đang tải...</p>
-          </div>
-        </div>
-      )}
 
       {/* Tenant Search Modal */}
       <TenantSearchModal

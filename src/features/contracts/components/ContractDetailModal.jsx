@@ -178,7 +178,7 @@ const ContractDetailModal = ({ isOpen, onClose, contract }) => {
                           ? "Đã hết hạn"
                           : contract?.status === "DRAFT"
                           ? "Bản nháp"
-                          : "Đã hủy"}
+                          : "Đã chấm dứt"}
                       </span>
                     </div>
                     <div>
@@ -192,7 +192,7 @@ const ContractDetailModal = ({ isOpen, onClose, contract }) => {
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Ngày kết thúc</p>
+                      <p className="text-sm text-gray-600">Ngày kết thúc theo hợp đồng</p>
                       <p className="font-medium text-gray-900">
                         {contract?.end_date
                           ? new Date(contract.end_date).toLocaleDateString(
@@ -201,6 +201,16 @@ const ContractDetailModal = ({ isOpen, onClose, contract }) => {
                           : "-"}
                       </p>
                     </div>
+                    {contract?.terminated_date && (
+                      <div>
+                        <p className="text-sm text-gray-600">Ngày chấm dứt thực tế</p>
+                        <p className="font-medium text-gray-900">
+                          {new Date(contract.terminated_date).toLocaleDateString(
+                            "vi-VN"
+                          )}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -676,8 +686,8 @@ const ContractDetailModal = ({ isOpen, onClose, contract }) => {
                 )}
 
                 {/* File Content */}
-                <div className="flex-1 overflow-auto bg-gray-100 p-6">
-                  <div className="bg-white shadow-xl rounded-lg overflow-hidden max-w-full">
+                <div className="flex-1 overflow-auto bg-gray-100 p-6 min-h-0">
+                  <div className="bg-white shadow-xl rounded-lg overflow-hidden max-w-full min-h-full flex flex-col">
                     {contractFiles[selectedFileIndex]?.publicUrl ? (
                       (() => {
                         const currentFile = contractFiles[selectedFileIndex];
@@ -688,7 +698,7 @@ const ContractDetailModal = ({ isOpen, onClose, contract }) => {
 
                         if (isPdf) {
                           return (
-                            <div className="overflow-auto max-h-full">
+                            <div className="overflow-auto max-h-full p-4">
                               <Document
                                 file={currentFile.publicUrl}
                                 onLoadSuccess={onDocumentLoadSuccess}
@@ -710,15 +720,17 @@ const ContractDetailModal = ({ isOpen, onClose, contract }) => {
                           );
                         } else if (isImage) {
                           return (
-                            <div className="overflow-auto max-h-full p-4">
-                              <img
-                                src={currentFile.publicUrl}
-                                alt={currentFile.file_name}
-                                className="max-w-full object-contain"
-                                style={{ transform: `scale(${scale})` }}
-                                onLoad={() => setError(null)}
-                                onError={() => setError("Không thể tải ảnh")}
-                              />
+                            <div className="overflow-auto max-h-full p-4 flex items-start justify-center min-h-0">
+                              <div className="relative inline-block" style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}>
+                                <img
+                                  src={currentFile.publicUrl}
+                                  alt={currentFile.file_name}
+                                  className="max-w-[800px] max-h-[600px] w-auto h-auto object-contain"
+                                  style={{ display: 'block' }}
+                                  onLoad={() => setError(null)}
+                                  onError={() => setError("Không thể tải ảnh")}
+                                />
+                              </div>
                             </div>
                           );
                         } else {

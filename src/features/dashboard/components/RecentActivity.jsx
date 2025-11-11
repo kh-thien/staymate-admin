@@ -1,114 +1,66 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
+import {
+  UserCircleIcon,
+  HomeIcon,
+  DocumentTextIcon,
+  CurrencyDollarIcon,
+  WrenchScrewdriverIcon,
+  BellIcon,
+} from "@heroicons/react/24/outline";
 
 const RecentActivity = ({ activities = [], loading = false }) => {
   const getActivityIcon = (type) => {
-    const iconClasses = "h-5 w-5";
+    const iconClass = "h-5 w-5";
+    const entityType = type?.toLowerCase();
 
-    switch (type) {
-      case "contract":
-        return (
-          <svg
-            className={`${iconClasses} text-blue-600`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
-        );
-      case "payment":
-        return (
-          <svg
-            className={`${iconClasses} text-green-600`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
-            />
-          </svg>
-        );
+    switch (entityType) {
       case "tenant":
-        return (
-          <svg
-            className={`${iconClasses} text-purple-600`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-            />
-          </svg>
-        );
+      case "user":
+        return <UserCircleIcon className={iconClass} />;
+      case "property":
+      case "room":
+        return <HomeIcon className={iconClass} />;
+      case "contract":
+      case "bill":
+        return <DocumentTextIcon className={iconClass} />;
+      case "payment":
+        return <CurrencyDollarIcon className={iconClass} />;
       case "maintenance":
-        return (
-          <svg
-            className={`${iconClasses} text-yellow-600`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-            />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-            />
-          </svg>
-        );
+        return <WrenchScrewdriverIcon className={iconClass} />;
       default:
-        return (
-          <svg
-            className={`${iconClasses} text-gray-600`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-        );
+        return <BellIcon className={iconClass} />;
     }
   };
 
-  const getActivityColor = (type) => {
-    switch (type) {
-      case "contract":
-        return "bg-blue-50 border-blue-200";
-      case "payment":
-        return "bg-green-50 border-green-200";
-      case "tenant":
-        return "bg-purple-50 border-purple-200";
-      case "maintenance":
-        return "bg-yellow-50 border-yellow-200";
+  const getActivityColor = (action) => {
+    switch (action?.toUpperCase()) {
+      case "CREATE":
+        return "text-green-600 bg-green-50";
+      case "UPDATE":
+        return "text-blue-600 bg-blue-50";
+      case "DELETE":
+        return "text-red-600 bg-red-50";
+      case "LOGIN":
+        return "text-purple-600 bg-purple-50";
+      case "LOGOUT":
+        return "text-gray-600 bg-gray-50";
       default:
-        return "bg-gray-50 border-gray-200";
+        return "text-gray-600 bg-gray-50";
     }
+  };
+
+  const getActionText = (action) => {
+    const actionMap = {
+      CREATE: "Tạo mới",
+      UPDATE: "Cập nhật",
+      DELETE: "Xóa",
+      LOGIN: "Đăng nhập",
+      LOGOUT: "Đăng xuất",
+    };
+    return actionMap[action?.toUpperCase()] || action;
   };
 
   if (loading) {
@@ -138,9 +90,12 @@ const RecentActivity = ({ activities = [], loading = false }) => {
         <h3 className="text-lg font-semibold text-gray-900">
           Hoạt động gần đây
         </h3>
-        <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+        <Link
+          to="/activity-logs"
+          className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+        >
           Xem tất cả
-        </button>
+        </Link>
       </div>
 
       <div className="space-y-4">
@@ -162,36 +117,82 @@ const RecentActivity = ({ activities = [], loading = false }) => {
             <p className="mt-2 text-sm text-gray-500">Chưa có hoạt động nào</p>
           </div>
         ) : (
-          activities.map((activity) => (
-            <div
-              key={activity.id}
-              className={`flex items-center space-x-3 p-3 rounded-lg border ${getActivityColor(
-                activity.type
-              )}`}
-            >
-              <div className="flex-shrink-0">
-                {getActivityIcon(activity.type)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
-                  {activity.title}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {formatDistanceToNow(new Date(activity.createdAt), {
+          activities.slice(0, 5).map((activity) => {
+            // Support both created_at (database) and createdAt (transformed)
+            const createdAt = activity.created_at || activity.createdAt;
+            const activityType =
+              activity.entity_type || activity.type || "other";
+            const activityTitle =
+              activity.description ||
+              activity.action ||
+              activity.title ||
+              "Hoạt động";
+
+            // Validate date before formatting
+            let timeAgo = "Không xác định";
+            try {
+              if (createdAt) {
+                const date = new Date(createdAt);
+                if (!isNaN(date.getTime())) {
+                  timeAgo = formatDistanceToNow(date, {
                     addSuffix: true,
                     locale: vi,
-                  })}
-                </p>
-              </div>
-              {activity.amount && (
-                <div className="flex-shrink-0">
-                  <span className="text-sm font-medium text-gray-900">
-                    {activity.amount.toLocaleString()} VNĐ
-                  </span>
+                  });
+                }
+              }
+            } catch (err) {
+              console.error("Error formatting date:", err);
+            }
+
+            return (
+              <div
+                key={activity.id}
+                className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors"
+              >
+                {/* Icon with colored background */}
+                <div
+                  className={`flex-shrink-0 p-2 rounded-lg ${getActivityColor(
+                    activity.action
+                  )}`}
+                >
+                  {getActivityIcon(activityType)}
                 </div>
-              )}
-            </div>
-          ))
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">
+                        {activityTitle}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getActivityColor(
+                            activity.action
+                          )}`}
+                        >
+                          {getActionText(activity.action)}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {activityType}
+                        </span>
+                      </div>
+                    </div>
+                    <time className="flex-shrink-0 text-xs text-gray-500">
+                      {timeAgo}
+                    </time>
+                  </div>
+                  {activity.amount && (
+                    <div className="mt-2">
+                      <span className="text-sm font-medium text-gray-900">
+                        {activity.amount.toLocaleString()} VNĐ
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
     </div>

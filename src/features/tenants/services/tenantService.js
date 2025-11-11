@@ -1,29 +1,46 @@
 import { supabase } from "../../../core/data/remote/supabase";
+import { emergencyContactService } from "./emergencyContactService";
 
 export const tenantService = {
   // Tạo tenant mới
   async createTenant(tenantData) {
     try {
+      if (!tenantData.created_by) {
+        throw new Error("Missing created_by field when creating tenant");
+      }
+
+      // Tách emergency contact data ra khỏi tenant data
+      const {
+        emergency_contact_name,
+        emergency_contact_phone,
+        emergency_contact_relationship,
+        emergency_contact_email,
+        emergency_contact_address,
+        ...tenantFields
+      } = tenantData;
+
       // Process data to handle empty date fields and strings
       const processedData = {
-        ...tenantData,
+        ...tenantFields,
         // Convert empty date strings to null for database
-        birthdate: tenantData.birthdate || null,
-        move_in_date: tenantData.move_in_date || null,
-        move_out_date: tenantData.move_out_date || null,
+        birthdate: tenantFields.birthdate || null,
         // Convert empty strings to null for optional fields
-        email: tenantData.email || null,
-        hometown: tenantData.hometown || null,
-        occupation: tenantData.occupation || null,
-        id_number: tenantData.id_number || null,
-        note: tenantData.note || null,
-        // Emergency contact fields
-        emergency_contact_name: tenantData.emergency_contact_name || null,
-        emergency_contact_phone: tenantData.emergency_contact_phone || null,
-        emergency_contact_relationship:
-          tenantData.emergency_contact_relationship || null,
+        email: tenantFields.email || null,
+        hometown: tenantFields.hometown || null,
+        occupation: tenantFields.occupation || null,
+        id_number: tenantFields.id_number || null,
+        note: tenantFields.note || null,
+        // Convert empty room_id to null
+        // active_in_room sẽ được tự động cập nhật bởi trigger dựa trên room_id
+        room_id: tenantFields.room_id && tenantFields.room_id.trim() !== "" 
+          ? tenantFields.room_id 
+          : null,
+        // is_active chỉ dùng cho soft delete, không phụ thuộc vào room_id
+        // active_in_room sẽ được trigger tự động set dựa trên room_id
+        is_active: tenantFields.is_active !== undefined ? tenantFields.is_active : true,
         // Account status
-        account_status: tenantData.account_status || "PENDING",
+        account_status: tenantFields.account_status || "PENDING",
+        created_by: tenantFields.created_by,
       };
 
       const { data, error } = await supabase
@@ -32,13 +49,47 @@ export const tenantService = {
         .select(
           `
           *,
-          rooms(code, name, property_id, properties!inner(name, address))
+          rooms!room_id(code, name, property_id, properties(name, address)),
+          tenant_emergency_contacts(*)
         `
         )
         .single();
 
       if (error) throw error;
-      return data;
+
+      // Tạo emergency contact nếu có dữ liệu
+      // Chỉ tạo nếu có ít nhất contact_name và phone (required fields)
+      if (
+        emergency_contact_name &&
+        emergency_contact_name.trim() !== "" &&
+        emergency_contact_phone &&
+        emergency_contact_phone.trim() !== ""
+      ) {
+        try {
+          await emergencyContactService.createEmergencyContact({
+            tenant_id: data.id,
+            contact_name: emergency_contact_name.trim(),
+            phone: emergency_contact_phone.trim(),
+            relationship: emergency_contact_relationship?.trim() || null,
+            email: emergency_contact_email?.trim() || null,
+            address: emergency_contact_address?.trim() || null,
+            is_primary: true,
+          });
+        } catch (contactError) {
+          console.error(
+            "Error creating emergency contact:",
+            contactError
+          );
+          // Throw error để user biết emergency contact không được tạo
+          // Nhưng tenant đã được tạo thành công
+          throw new Error(
+            `Tenant đã được tạo thành công, nhưng không thể tạo thông tin liên hệ khẩn cấp: ${contactError.message}`
+          );
+        }
+      }
+
+      // Fetch lại tenant với emergency contacts
+      return await this.getTenantById(data.id);
     } catch (error) {
       console.error("Error creating tenant:", error);
       throw error;
@@ -50,8 +101,14 @@ export const tenantService = {
     try {
       let query = supabase.from("tenants").select(`
           *,
-          rooms(code, name, property_id, properties!inner(name, address))
+          rooms!room_id(code, name, property_id, properties(name, address)),
+          tenant_emergency_contacts(*)
         `);
+
+      // Filter by created_by if provided
+      if (filters.created_by) {
+        query = query.eq("created_by", filters.created_by);
+      }
 
       // Apply filters
       if (filters.search && filters.search.trim()) {
@@ -61,11 +118,16 @@ export const tenantService = {
         );
       }
 
+      // Filter theo active_in_room (trạng thái ở trong room)
+      // is_active chỉ dùng cho soft delete, không dùng cho filter status
       if (filters.status === "active") {
-        query = query.eq("is_active", true);
+        query = query.eq("active_in_room", true);
       } else if (filters.status === "inactive") {
-        query = query.eq("is_active", false);
+        query = query.eq("active_in_room", false);
       }
+      
+      // Luôn filter ra các tenant đã bị soft delete (is_active = false)
+      query = query.eq("is_active", true);
 
       if (filters.room && filters.room !== "all") {
         query = query.eq("room_id", filters.room);
@@ -114,8 +176,9 @@ export const tenantService = {
         .select(
           `
           *,
-          rooms(code, name, property_id, properties!inner(name, address)),
-          contracts!inner(*)
+          rooms!room_id(code, name, property_id, properties(name, address)),
+          contracts(*),
+          tenant_emergency_contacts(*)
         `
         )
         .eq("id", tenantId)
@@ -137,7 +200,8 @@ export const tenantService = {
         .select(
           `
           *,
-          rooms(code, name, property_id, properties!inner(name, address))
+          rooms!room_id(code, name, property_id, properties(name, address)),
+          tenant_emergency_contacts(*)
         `
         )
         .eq("room_id", roomId)
@@ -154,26 +218,37 @@ export const tenantService = {
   // Cập nhật tenant
   async updateTenant(tenantId, updateData) {
     try {
+      // Tách emergency contact data ra khỏi tenant data
+      const {
+        emergency_contact_name,
+        emergency_contact_phone,
+        emergency_contact_relationship,
+        emergency_contact_email,
+        emergency_contact_address,
+        ...tenantFields
+      } = updateData;
+
       // Process data to handle empty date fields and strings
       const processedData = {
-        ...updateData,
+        ...tenantFields,
         // Convert empty date strings to null for database
-        birthdate: updateData.birthdate || null,
-        move_in_date: updateData.move_in_date || null,
-        move_out_date: updateData.move_out_date || null,
+        birthdate: tenantFields.birthdate || null,
         // Convert empty strings to null for optional fields
-        email: updateData.email || null,
-        hometown: updateData.hometown || null,
-        occupation: updateData.occupation || null,
-        id_number: updateData.id_number || null,
-        note: updateData.note || null,
-        // Emergency contact fields
-        emergency_contact_name: updateData.emergency_contact_name || null,
-        emergency_contact_phone: updateData.emergency_contact_phone || null,
-        emergency_contact_relationship:
-          updateData.emergency_contact_relationship || null,
+        email: tenantFields.email || null,
+        hometown: tenantFields.hometown || null,
+        occupation: tenantFields.occupation || null,
+        id_number: tenantFields.id_number || null,
+        note: tenantFields.note || null,
+        // Convert empty room_id to null
+        // active_in_room sẽ được tự động cập nhật bởi trigger dựa trên room_id
+        room_id: tenantFields.room_id && tenantFields.room_id.trim() !== "" 
+          ? tenantFields.room_id 
+          : null,
+        // is_active chỉ dùng cho soft delete, không phụ thuộc vào room_id
+        // active_in_room sẽ được trigger tự động set dựa trên room_id
+        is_active: tenantFields.is_active !== undefined ? tenantFields.is_active : undefined,
         // Account status
-        account_status: updateData.account_status || "PENDING",
+        account_status: tenantFields.account_status || "PENDING",
       };
 
       const { data, error } = await supabase
@@ -183,13 +258,57 @@ export const tenantService = {
         .select(
           `
           *,
-          rooms(code, name, property_id, properties!inner(name, address))
+          rooms!room_id(code, name, property_id, properties(name, address)),
+          tenant_emergency_contacts(*)
         `
         )
         .single();
 
       if (error) throw error;
-      return data;
+
+      // Cập nhật hoặc tạo emergency contact nếu có dữ liệu
+      // Chỉ cập nhật/tạo nếu có ít nhất contact_name và phone (required fields)
+      if (
+        (emergency_contact_name !== undefined && emergency_contact_name?.trim() !== "") ||
+        (emergency_contact_phone !== undefined && emergency_contact_phone?.trim() !== "")
+      ) {
+        // Nếu có ít nhất một trong hai field, cần cả hai
+        if (
+          emergency_contact_name &&
+          emergency_contact_name.trim() !== "" &&
+          emergency_contact_phone &&
+          emergency_contact_phone.trim() !== ""
+        ) {
+          try {
+            await emergencyContactService.upsertPrimaryEmergencyContact(
+              tenantId,
+              {
+                contact_name: emergency_contact_name.trim(),
+                phone: emergency_contact_phone.trim(),
+                relationship: emergency_contact_relationship?.trim() || null,
+                email: emergency_contact_email?.trim() || null,
+                address: emergency_contact_address?.trim() || null,
+              }
+            );
+          } catch (contactError) {
+            console.error(
+              "Error updating emergency contact:",
+              contactError
+            );
+            throw new Error(
+              `Không thể cập nhật thông tin liên hệ khẩn cấp: ${contactError.message}`
+            );
+          }
+        } else {
+          // Nếu chỉ có một trong hai field, throw error
+          throw new Error(
+            "Vui lòng nhập đầy đủ Họ tên và Số điện thoại cho liên hệ khẩn cấp"
+          );
+        }
+      }
+
+      // Fetch lại tenant với emergency contacts
+      return await this.getTenantById(tenantId);
     } catch (error) {
       console.error("Error updating tenant:", error);
       throw error;
@@ -200,14 +319,16 @@ export const tenantService = {
   async canDeleteTenant(tenantId) {
     try {
       // Lấy thông tin tenant và hợp đồng
+      // Bỏ !inner để tránh lỗi khi tenant không có contract
       const { data: tenant, error: tenantError } = await supabase
         .from("tenants")
         .select(
           `
           id,
           is_active,
-          move_out_date,
-          contracts!inner(
+          active_in_room,
+          room_id,
+          contracts(
             id,
             status,
             end_date
@@ -224,24 +345,28 @@ export const tenantService = {
         canDelete: false,
         reason: "",
         details: {
-          isActive: tenant.is_active,
+          isActive: tenant.active_in_room || false, // Dùng active_in_room thay vì is_active
           hasActiveContracts: false,
           activeContractsCount: 0,
-          moveOutDate: tenant.move_out_date,
         },
       };
 
-      // 1. Phải đã chuyển đi (is_active = false)
-      if (tenant.is_active) {
+      // 1. Phải đã chuyển đi khỏi room (active_in_room = false)
+      // is_active chỉ dùng cho soft delete, không liên quan đến room
+      if (tenant.active_in_room) {
         canDelete.reason =
-          "Không thể xóa người thuê đang ở. Vui lòng chuyển họ ra trước.";
+          "Không thể xóa người thuê đang ở trong phòng. Vui lòng chuyển họ ra trước.";
         return canDelete;
       }
 
       // 2. Kiểm tra hợp đồng đang hoạt động
-      const activeContracts = tenant.contracts.filter(
+      // Xử lý trường hợp tenant không có contract (contracts = null hoặc [])
+      const contracts = tenant.contracts || [];
+      const activeContracts = contracts.filter(
         (contract) =>
+          contract &&
           contract.status === "ACTIVE" &&
+          contract.end_date &&
           new Date(contract.end_date) >= new Date()
       );
 
@@ -250,12 +375,6 @@ export const tenantService = {
 
       if (activeContracts.length > 0) {
         canDelete.reason = `Không thể xóa vì còn ${activeContracts.length} hợp đồng đang hoạt động. Vui lòng kết thúc hợp đồng trước.`;
-        return canDelete;
-      }
-
-      // 3. Phải có ngày chuyển ra
-      if (!tenant.move_out_date) {
-        canDelete.reason = "Không thể xóa vì chưa có ngày chuyển ra.";
         return canDelete;
       }
 
@@ -283,7 +402,6 @@ export const tenantService = {
         .from("tenants")
         .update({
           is_active: false,
-          move_out_date: new Date().toISOString().split("T")[0],
           updated_at: new Date().toISOString(),
         })
         .eq("id", tenantId)
@@ -328,7 +446,8 @@ export const tenantService = {
         .select(
           `
           *,
-          rooms(code, name, property_id, properties!inner(name, address))
+          rooms!room_id(code, name, property_id, properties(name, address)),
+          tenant_emergency_contacts(*)
         `
         )
         .or(
@@ -344,41 +463,45 @@ export const tenantService = {
     }
   },
 
-  // Lấy thống kê tenants
-  async getTenantStats() {
+  // Lấy thống kê tenants (tổng số tổng thể)
+  async getTenantStats(filters = {}) {
     try {
+      // Base query với filter created_by nếu có
+      const baseQuery = (query) => {
+        let q = query.eq("is_active", true);
+        if (filters.created_by) {
+          q = q.eq("created_by", filters.created_by);
+        }
+        return q;
+      };
+
       const [
-        { data: totalTenants },
-        { data: activeTenants },
-        { data: inactiveTenants },
-        { data: maleTenants },
-        { data: femaleTenants },
+        { count: totalCount },
+        { count: activeCount },
+        { count: inactiveCount },
       ] = await Promise.all([
-        supabase.from("tenants").select("id", { count: "exact" }),
-        supabase
-          .from("tenants")
-          .select("id", { count: "exact" })
-          .eq("is_active", true),
-        supabase
-          .from("tenants")
-          .select("id", { count: "exact" })
-          .eq("is_active", false),
-        supabase
-          .from("tenants")
-          .select("id", { count: "exact" })
-          .eq("gender", "Nam"),
-        supabase
-          .from("tenants")
-          .select("id", { count: "exact" })
-          .eq("gender", "Nữ"),
+        // Total tenants (chưa bị soft delete)
+        baseQuery(supabase.from("tenants").select("id", { count: "exact", head: true })),
+        // Active tenants (đang ở trong room)
+        baseQuery(
+          supabase
+            .from("tenants")
+            .select("id", { count: "exact", head: true })
+            .eq("active_in_room", true)
+        ),
+        // Inactive tenants (không ở trong room)
+        baseQuery(
+          supabase
+            .from("tenants")
+            .select("id", { count: "exact", head: true })
+            .eq("active_in_room", false)
+        ),
       ]);
 
       return {
-        total: totalTenants?.length || 0,
-        active: activeTenants?.length || 0,
-        inactive: inactiveTenants?.length || 0,
-        male: maleTenants?.length || 0,
-        female: femaleTenants?.length || 0,
+        total: totalCount || 0,
+        active: activeCount || 0,
+        inactive: inactiveCount || 0,
       };
     } catch (error) {
       console.error("Error fetching tenant stats:", error);
@@ -398,11 +521,12 @@ export const tenantService = {
         .select(
           `
           *,
-          rooms(code, name, property_id, properties!inner(name, address)),
-          contracts!inner(end_date, status)
+          rooms!room_id(code, name, property_id, properties(name, address)),
+          contracts(end_date, status)
         `
         )
-        .eq("is_active", true)
+        .eq("active_in_room", true) // Chỉ lấy tenants đang ở trong room
+        .eq("is_active", true) // Chưa bị soft delete
         .lte("contracts.end_date", dateString)
         .eq("contracts.status", "ACTIVE")
         .order("contracts.end_date", { ascending: true });
@@ -415,7 +539,7 @@ export const tenantService = {
     }
   },
 
-  // Lấy tenants mới chuyển vào (trong tháng)
+  // Lấy tenants mới (trong tháng) - dựa trên created_at
   async getNewTenants() {
     try {
       const startOfMonth = new Date();
@@ -427,11 +551,12 @@ export const tenantService = {
         .select(
           `
           *,
-          rooms(code, name, property_id, properties!inner(name, address))
+          rooms!room_id(code, name, property_id, properties(name, address)),
+          tenant_emergency_contacts(*)
         `
         )
-        .gte("move_in_date", startDate)
-        .order("move_in_date", { ascending: false });
+        .gte("created_at", startDate)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       return data || [];
@@ -457,9 +582,7 @@ export const tenantService = {
         "Quê quán": tenant.hometown || "",
         "CMND/CCCD": tenant.id_number || "",
         Phòng: tenant.rooms?.code || "",
-        "Ngày chuyển vào": tenant.move_in_date || "",
-        "Ngày chuyển ra": tenant.move_out_date || "",
-        "Trạng thái": tenant.is_active ? "Đang ở" : "Đã chuyển",
+        "Trạng thái": tenant.active_in_room ? "Đang ở" : "Đã chuyển",
         "Ghi chú": tenant.note || "",
       }));
 

@@ -30,7 +30,6 @@ const PropertiesTable = ({ properties, onEdit, onDelete }) => {
               ...property,
               totalRooms: 0,
               occupiedRooms: 0,
-              occupancyRate: 0,
             };
           }
         })
@@ -47,34 +46,36 @@ const PropertiesTable = ({ properties, onEdit, onDelete }) => {
     columnHelper.accessor("name", {
       header: "Tên nhà trọ",
       cell: (info) => (
-        <div className="font-medium text-gray-900">{info.getValue()}</div>
+        <div className="font-medium text-gray-900 text-sm">
+          {info.getValue()}
+        </div>
       ),
     }),
     columnHelper.accessor("address", {
       header: "Địa chỉ",
-      cell: (info) => <div className="text-gray-600">{info.getValue()}</div>,
+      cell: (info) => (
+        <div className="text-gray-600 text-sm truncate max-w-xs">
+          {info.getValue()}
+        </div>
+      ),
     }),
     columnHelper.accessor("city", {
       header: "Thành phố",
       cell: (info) => (
-        <div className="text-gray-600">
-          {info.getValue() || "Chưa cập nhật"}
-        </div>
+        <div className="text-gray-600 text-sm">{info.getValue() || "-"}</div>
       ),
     }),
     columnHelper.accessor("ward", {
       header: "Phường/Xã",
       cell: (info) => (
-        <div className="text-gray-600">
-          {info.getValue() || "Chưa cập nhật"}
-        </div>
+        <div className="text-gray-600 text-sm">{info.getValue() || "-"}</div>
       ),
     }),
     columnHelper.accessor("totalRooms", {
       header: "Tổng phòng",
       cell: (info) => (
         <div className="text-center">
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
             {info.getValue() || 0}
           </span>
         </div>
@@ -84,41 +85,54 @@ const PropertiesTable = ({ properties, onEdit, onDelete }) => {
       header: "Đã thuê",
       cell: (info) => (
         <div className="text-center">
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700">
             {info.getValue() || 0}
           </span>
         </div>
       ),
     }),
-    columnHelper.accessor("occupancyRate", {
-      header: "Tỷ lệ lấp đầy",
-      cell: (info) => {
-        const rate = info.getValue() || 0;
-        return (
-          <div className="text-center">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-              {Math.round(rate)}%
-            </span>
-          </div>
-        );
-      },
-    }),
     columnHelper.display({
       id: "actions",
       header: "Thao tác",
       cell: (info) => (
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => onEdit(info.row.original)}
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            className="p-1.5 text-gray-400 hover:text-[#3C50E0] hover:bg-blue-50 rounded transition-colors"
+            title="Sửa"
           >
-            Sửa
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
           </button>
           <button
             onClick={() => onDelete(info.row.original)}
-            className="text-red-600 hover:text-red-800 text-sm font-medium"
+            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+            title="Xóa"
           >
-            Xóa
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
           </button>
         </div>
       ),
@@ -149,7 +163,7 @@ const PropertiesTable = ({ properties, onEdit, onDelete }) => {
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider"
                   >
                     {header.isPlaceholder
                       ? null
@@ -166,7 +180,7 @@ const PropertiesTable = ({ properties, onEdit, onDelete }) => {
             {table.getRowModel().rows.map((row) => (
               <tr key={row.id} className="hover:bg-gray-50">
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-6 py-4 whitespace-nowrap">
+                  <td key={cell.id} className="px-4 py-3 whitespace-nowrap">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}
@@ -177,123 +191,73 @@ const PropertiesTable = ({ properties, onEdit, onDelete }) => {
       </div>
 
       {/* Pagination */}
-      <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-        <div className="flex-1 flex justify-between sm:hidden">
+      <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200">
+        <div className="text-xs text-gray-600">
+          {table.getState().pagination.pageIndex *
+            table.getState().pagination.pageSize +
+            1}
+          -
+          {Math.min(
+            (table.getState().pagination.pageIndex + 1) *
+              table.getState().pagination.pageSize,
+            table.getFilteredRowModel().rows.length
+          )}{" "}
+          / {table.getFilteredRowModel().rows.length}
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => table.setPageIndex(0)}
+            disabled={!table.getCanPreviousPage()}
+            className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Trang đầu"
+          >
+            <svg
+              className="w-4 h-4 text-gray-600"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M15.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 010 1.414zm-6 0a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 011.414 1.414L5.414 10l4.293 4.293a1 1 0 010 1.414z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
           <button
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
-            className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-2.5 py-1.5 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium text-gray-700"
           >
-            Trước
+            ←
           </button>
+          <span className="px-2 text-xs text-gray-600">
+            {table.getState().pagination.pageIndex + 1} / {table.getPageCount()}
+          </span>
           <button
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
-            className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-2.5 py-1.5 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium text-gray-700"
           >
-            Sau
+            →
           </button>
-        </div>
-        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm text-gray-700">
-              Hiển thị{" "}
-              <span className="font-medium">
-                {table.getState().pagination.pageIndex *
-                  table.getState().pagination.pageSize +
-                  1}
-              </span>{" "}
-              đến{" "}
-              <span className="font-medium">
-                {Math.min(
-                  (table.getState().pagination.pageIndex + 1) *
-                    table.getState().pagination.pageSize,
-                  table.getFilteredRowModel().rows.length
-                )}
-              </span>{" "}
-              trong tổng số{" "}
-              <span className="font-medium">
-                {table.getFilteredRowModel().rows.length}
-              </span>{" "}
-              kết quả
-            </p>
-          </div>
-          <div>
-            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-              <button
-                onClick={() => table.setPageIndex(0)}
-                disabled={!table.getCanPreviousPage()}
-                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span className="sr-only">Trang đầu</span>
-                <svg
-                  className="h-5 w-5"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M15.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 010 1.414zm-6 0a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 011.414 1.414L5.414 10l4.293 4.293a1 1 0 010 1.414z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-              <button
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-                className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span className="sr-only">Trang trước</span>
-                <svg
-                  className="h-5 w-5"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-              <button
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-                className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span className="sr-only">Trang sau</span>
-                <svg
-                  className="h-5 w-5"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-              <button
-                onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                disabled={!table.getCanNextPage()}
-                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span className="sr-only">Trang cuối</span>
-                <svg
-                  className="h-5 w-5"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-            </nav>
-          </div>
+          <button
+            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+            disabled={!table.getCanNextPage()}
+            className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Trang cuối"
+          >
+            <svg
+              className="w-4 h-4 text-gray-600"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
         </div>
       </div>
     </div>

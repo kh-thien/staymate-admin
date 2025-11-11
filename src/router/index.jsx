@@ -8,6 +8,7 @@ import ResetPassword from "../features/auth/pages/resetPassword";
 import ConfirmedEmail from "../features/auth/pages/confirmedEmail";
 import Intro from "../features/intro/intro";
 import Dashboard from "../features/dashboard/pages/dashboard";
+import ActivityLogs from "../features/dashboard/pages/activityLogs";
 import TenantsPage from "../features/tenants/pages/tenants";
 import Contracts from "../features/contracts/pages/contracts";
 import Services from "../features/services/pages/services";
@@ -106,6 +107,10 @@ const router = createBrowserRouter([
           {
             path: "/dashboard",
             element: <Dashboard />,
+          },
+          {
+            path: "/activity-logs",
+            element: <ActivityLogs />,
           },
           {
             path: "/chat",

@@ -16,6 +16,46 @@ export default function AuthProvider({ children }) {
   const [justLoggedIn, setJustLoggedIn] = useState(false);
   const navigate = useNavigate();
 
+  // Function để check và update role ADMIN cho OAuth user mới
+  const checkAndUpdateOAuthUserRole = async (authUser) => {
+    try {
+      if (!authUser?.id) {
+        return;
+      }
+
+      // Đợi một chút để trigger tạo user trong database
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Check xem user có trong database chưa
+      const userExists = await userService.checkUserExists(authUser.id);
+      
+      if (!userExists) {
+        console.log("User not found in database yet, waiting a bit more...");
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+
+      // Lấy thông tin user từ database
+      const dbUser = await userService.getUserByAuthId(authUser.id);
+      
+      if (dbUser) {
+        // Check xem user có phải là user mới không (created trong vòng 5 phút)
+        const createdAt = new Date(dbUser.created_at);
+        const now = new Date();
+        const minutesDiff = (now - createdAt) / (1000 * 60);
+        
+        // Nếu user mới được tạo (trong vòng 5 phút) và role là TENANT, update thành ADMIN
+        if (minutesDiff <= 5 && dbUser.role === 'TENANT') {
+          console.log("🔄 OAuth user detected - updating role to ADMIN");
+          await userService.updateUser(authUser.id, { role: 'ADMIN' });
+          console.log("✅ Role updated to ADMIN for OAuth user");
+        }
+      }
+    } catch (error) {
+      console.error("Error checking/updating OAuth user role:", error);
+      // Không throw error để không làm gián đoạn flow đăng nhập
+    }
+  };
+
   // Function để lấy thông tin user đầy đủ từ database
   const fetchUserFromDatabase = async (authUser) => {
     try {
@@ -329,20 +369,43 @@ export default function AuthProvider({ children }) {
           setIsPasswordRecovery(false);
         }
 
-        if (session?.user) {
-          const fullUser = await fetchUserFromDatabase(session.user);
-          setUserId(fullUser?.userid || session.user.id);
-          setUser(fullUser);
-        } else {
-          setUserId(null);
-          setUser(null);
-        }
-
         // Check if this is email confirmation vs normal login/OAuth vs password recovery
         const isConfirmationFlow =
           currentPath === "/confirmed-email" ||
           hasEmailConfirmationToken ||
           isCurrentlyPasswordRecovery;
+
+        // Detect OAuth login: check if user has OAuth provider (google, github, etc.)
+        // OAuth users typically have identities array with provider info
+        const hasOAuthProvider = session?.user?.identities?.some(
+          (identity) => identity.provider !== 'email'
+        ) || (session?.user?.app_metadata?.provider && 
+              session?.user?.app_metadata?.provider !== 'email');
+        
+        const isOAuthLogin = hasOAuthProvider && !isConfirmationFlow;
+
+        if (session?.user) {
+          const fullUser = await fetchUserFromDatabase(session.user);
+          setUserId(fullUser?.userid || session.user.id);
+          setUser(fullUser);
+
+          // Check and update role for OAuth users (Google, etc.) on first login
+          if (isOAuthLogin) {
+            console.log("🔍 OAuth login detected, checking user role...");
+            // Run async without blocking the flow
+            checkAndUpdateOAuthUserRole(session.user).then(() => {
+              // Refresh user data after role update
+              fetchUserFromDatabase(session.user).then((updatedUser) => {
+                if (updatedUser) {
+                  setUser(updatedUser);
+                }
+              });
+            });
+          }
+        } else {
+          setUserId(null);
+          setUser(null);
+        }
 
         console.log(
           "🔍 SIGNED_IN - current path:",
@@ -360,7 +423,11 @@ export default function AuthProvider({ children }) {
           "hasAccessToken:",
           hashParams.has("access_token"),
           "hasTokenHash:",
-          hasEmailConfirmationToken
+          hasEmailConfirmationToken,
+          "isOAuthLogin:",
+          isOAuthLogin,
+          "provider:",
+          session?.user?.app_metadata?.provider
         );
 
         // Set justLoggedIn flag for normal logins (not email confirmation or password recovery)
@@ -523,6 +590,7 @@ export default function AuthProvider({ children }) {
         {
           metadata: {
             full_name: userData.fullName,
+            role: 'ADMIN',
           },
         }
       );

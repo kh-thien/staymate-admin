@@ -13,8 +13,20 @@ import StatsCard from "../components/StatsCard";
 import RevenueChart from "../components/RevenueChart";
 import RecentActivity from "../components/RecentActivity";
 const Dashboard = () => {
-  const { stats, revenueData, recentActivities, loading, error, refreshData } =
-    useDashboard();
+  const {
+    properties,
+    rooms,
+    tenants,
+    contracts,
+    revenue,
+    occupancyRate,
+    recentActivities,
+    revenueTrend,
+    loading,
+    error,
+    refresh,
+    refreshing,
+  } = useDashboard();
 
   if (error) {
     return (
@@ -40,7 +52,7 @@ const Dashboard = () => {
           </h3>
           <p className="text-red-700 mb-4">{error}</p>
           <button
-            onClick={refreshData}
+            onClick={refresh}
             className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             Thử lại
@@ -62,12 +74,12 @@ const Dashboard = () => {
         </div>
         <div className="flex items-center space-x-3">
           <button
-            onClick={refreshData}
-            disabled={loading}
+            onClick={refresh}
+            disabled={loading || refreshing}
             className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
           >
             <ClockIcon className="h-4 w-4 inline mr-2" />
-            Làm mới
+            {refreshing ? "Đang cập nhật..." : "Làm mới"}
           </button>
         </div>
       </div>
@@ -76,28 +88,32 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
           title="Tổng số nhà trọ"
-          value={stats.totalProperties}
+          value={properties.total}
+          subtitle={`${properties.active} đang hoạt động`}
           icon={BuildingOfficeIcon}
           color="blue"
           loading={loading}
         />
         <StatsCard
           title="Tổng số phòng"
-          value={stats.totalRooms}
+          value={rooms.total}
+          subtitle={`${rooms.occupied} có người, ${rooms.vacant} trống`}
           icon={HomeIcon}
           color="green"
           loading={loading}
         />
         <StatsCard
           title="Tổng số người thuê"
-          value={stats.totalTenants}
+          value={tenants.total}
+          subtitle={`${tenants.active} đang hoạt động`}
           icon={UserGroupIcon}
           color="purple"
           loading={loading}
         />
         <StatsCard
-          title="Hợp đồng đang hoạt động"
-          value={stats.activeContracts}
+          title="Hợp đồng"
+          value={contracts.total}
+          subtitle={`${contracts.active} đang hoạt động`}
           icon={DocumentTextIcon}
           color="indigo"
           loading={loading}
@@ -108,21 +124,21 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatsCard
           title="Tổng doanh thu"
-          value={`${stats.totalRevenue.toLocaleString()} VNĐ`}
+          value={`${revenue.totalRevenue.toLocaleString("vi-VN")} VNĐ`}
           icon={CurrencyDollarIcon}
           color="green"
           loading={loading}
         />
         <StatsCard
           title="Doanh thu tháng này"
-          value={`${stats.monthlyRevenue.toLocaleString()} VNĐ`}
+          value={`${revenue.monthlyRevenue.toLocaleString("vi-VN")} VNĐ`}
           icon={ChartBarIcon}
           color="blue"
           loading={loading}
         />
         <StatsCard
           title="Tỷ lệ lấp đầy"
-          value={`${stats.occupancyRate}%`}
+          value={`${occupancyRate}%`}
           icon={HomeIcon}
           color="yellow"
           loading={loading}
@@ -131,7 +147,7 @@ const Dashboard = () => {
 
       {/* Charts and Activities */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RevenueChart data={revenueData} loading={loading} />
+        <RevenueChart data={revenueTrend} loading={loading} />
         <RecentActivity activities={recentActivities} loading={loading} />
       </div>
 
