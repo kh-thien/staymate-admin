@@ -41,10 +41,14 @@ export const AuthService = {
   // Sign in with OAuth providers
   signInWithProvider: async (provider) => {
     try {
+      const redirectUrl = window.location.origin + "/home";
+      console.log(`🔐 OAuth ${provider} - Redirect URL:`, redirectUrl);
+      console.log(`🔐 Current origin:`, window.location.origin);
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider, // 'google', 'github', 'facebook', etc.
         options: {
-          redirectTo: window.location.origin + "/home",
+          redirectTo: redirectUrl,
         },
       });
       if (error) throw error;
@@ -58,12 +62,66 @@ export const AuthService = {
   // Sign out
   signOut: async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      // Kiểm tra session trước khi logout
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        console.warn("⚠️ No active session found, clearing local storage");
+        // Nếu không có session, vẫn clear local storage
+        await supabase.auth.signOut({ scope: 'local' });
+        return { success: true, error: null };
+      }
+
+      // Có session, thử logout với scope global
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      
+      if (error) {
+        // Nếu global logout fail, thử local logout
+        console.warn("⚠️ Global logout failed, trying local logout:", error.message);
+        const { error: localError } = await supabase.auth.signOut({ scope: 'local' });
+        if (localError) {
+          console.error("⚠️ Local logout also failed:", localError.message);
+          // Force clear tất cả Supabase auth storage
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          if (supabaseUrl) {
+            const projectRef = supabaseUrl.split('//')[1]?.split('.')[0];
+            if (projectRef) {
+              // Clear Supabase auth tokens
+              Object.keys(localStorage).forEach(key => {
+                if (key.includes('supabase') || key.includes(projectRef)) {
+                  localStorage.removeItem(key);
+                }
+              });
+            }
+          }
+          sessionStorage.clear();
+        }
+        return { success: true, error: null }; // Vẫn return success vì đã clear local
+      }
+      
       return { success: true, error: null };
     } catch (error) {
       console.error("Sign out error:", error.message);
-      return { success: false, error };
+      // Fallback: clear local storage nếu có lỗi
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+        // Clear Supabase auth storage
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        if (supabaseUrl) {
+          const projectRef = supabaseUrl.split('//')[1]?.split('.')[0];
+          if (projectRef) {
+            Object.keys(localStorage).forEach(key => {
+              if (key.includes('supabase') || key.includes(projectRef)) {
+                localStorage.removeItem(key);
+              }
+            });
+          }
+        }
+        sessionStorage.clear();
+      } catch (fallbackError) {
+        console.error("Fallback logout also failed:", fallbackError);
+      }
+      return { success: true, error: null }; // Vẫn return success sau khi clear local
     }
   },
 

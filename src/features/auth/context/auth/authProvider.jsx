@@ -564,16 +564,29 @@ export default function AuthProvider({ children }) {
     try {
       const result = await AuthService.signOut();
 
+      // Luôn coi là success vì đã clear local storage
+      // Ngay cả khi API call fail, user vẫn được logout local
       if (result.success) {
         // User state will be updated by the auth state change listener
         console.log("Logout successful");
+        // Force clear user state nếu listener chưa kịp update
+        setUser(null);
+        setJustLoggedIn(false);
         return { success: true };
       } else {
-        throw result.error;
+        // Nếu có error nhưng vẫn clear được local, vẫn coi là success
+        console.warn("Logout API failed but local storage cleared:", result.error);
+        setUser(null);
+        setJustLoggedIn(false);
+        return { success: true };
       }
     } catch (error) {
       console.error("Logout failed:", error);
-      throw error;
+      // Ngay cả khi có exception, vẫn clear user state
+      setUser(null);
+      setJustLoggedIn(false);
+      // Không throw error để UI không bị stuck
+      return { success: true };
     } finally {
       setIsLoading(false);
     }
