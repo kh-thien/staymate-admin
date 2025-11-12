@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { createRoot } from "react-dom/client";
+import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import "./index.css";
 import { RouterProvider } from "react-router-dom";
@@ -11,6 +12,7 @@ createRoot(document.getElementById("root")).render(
   <StrictMode>
     <RouterProvider router={router} />
     <ToastContainer position="top-right" autoClose={2000} />
+    <Analytics />
     <SpeedInsights />
   </StrictMode>
 );
