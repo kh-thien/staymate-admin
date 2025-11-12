@@ -28,3 +28,6 @@ dist-ssr
 *.sw?
 node_modules
 .env
+.idea
+.vscode
+.cursor
