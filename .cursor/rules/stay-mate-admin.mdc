@@ -1,7 +1,0 @@
----
-description:
-globs:
-alwaysApply: true
----
-always check supabase database with mcp to see the status of tables and triggers and functions to see if it is reasonable
-Please check the database on supabase mcp for consistency, make sure they don't conflict, if there is conflict please notify me and fix it
