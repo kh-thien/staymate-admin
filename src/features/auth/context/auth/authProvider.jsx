@@ -256,9 +256,10 @@ export default function AuthProvider({ children }) {
         "🔍 Auto-redirect check passed for fresh login, checking path:",
         path
       );
-      // Only redirect from signin page, allow access to intro (/) and confirmed-email
-      if (path === "/signin") {
-        console.log("Redirecting from signin to /home");
+      // Redirect from signin page OR root (/) after OAuth callback
+      // OAuth callback thường redirect về / hoặc /home
+      if (path === "/signin" || path === "/") {
+        console.log(`Redirecting from ${path} to /home after login`);
         navigate("/home", { replace: true });
         setJustLoggedIn(false); // Reset flag after redirect
       } else {
@@ -572,12 +573,16 @@ export default function AuthProvider({ children }) {
         // Force clear user state nếu listener chưa kịp update
         setUser(null);
         setJustLoggedIn(false);
+        // Redirect về trang chủ sau khi logout
+        navigate("/", { replace: true });
         return { success: true };
       } else {
         // Nếu có error nhưng vẫn clear được local, vẫn coi là success
         console.warn("Logout API failed but local storage cleared:", result.error);
         setUser(null);
         setJustLoggedIn(false);
+        // Redirect về trang chủ sau khi logout
+        navigate("/", { replace: true });
         return { success: true };
       }
     } catch (error) {
@@ -585,6 +590,8 @@ export default function AuthProvider({ children }) {
       // Ngay cả khi có exception, vẫn clear user state
       setUser(null);
       setJustLoggedIn(false);
+      // Redirect về trang chủ sau khi logout
+      navigate("/", { replace: true });
       // Không throw error để UI không bị stuck
       return { success: true };
     } finally {
