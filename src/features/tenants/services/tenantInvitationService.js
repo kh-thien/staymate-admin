@@ -1,4 +1,5 @@
 import { supabase } from "../../../core/data/remote/supabase";
+import { toast } from "react-toastify";
 
 // Utility function để generate token
 const generateInvitationToken = () => {
@@ -201,60 +202,116 @@ export const tenantInvitationService = {
     }
   },
 
-  // Gửi email lời mời (placeholder - sẽ implement với email service thực tế)
+  // Gửi email lời mời qua StayMate Server
   async sendInvitationEmail({ tenantName, email, invitationToken, expiresAt }) {
     try {
       const invitationUrl = `${window.location.origin}/invite/accept?token=${invitationToken}`;
+      const serverUrl = import.meta.env.VITE_STAYMATE_SERVER;
 
       console.log("📧 Sending invitation email:", {
         to: email,
         tenantName,
         invitationUrl,
         expiresAt,
+        serverUrl,
       });
 
-      // Sử dụng external Node.js service
-      try {
-        const response = await fetch(
-          "http://localhost:3001/api/send-invitation-email",
+      // Kiểm tra server URL có được cấu hình không
+      if (!serverUrl) {
+        console.warn("⚠️ VITE_STAYMATE_SERVER not configured, using fallback");
+        // Fallback: Hiển thị thông tin trong toast
+        const expiresAtFormatted = new Date(expiresAt).toLocaleString("vi-VN");
+        toast.warning(
+          `Server URL chưa được cấu hình. Link lời mời: ${invitationUrl}`,
           {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              tenantName,
-              email,
-              invitationUrl,
-              expiresAt,
-            }),
+            position: "top-right",
+            autoClose: 8000,
           }
         );
+        // Copy link to clipboard
+        navigator.clipboard.writeText(invitationUrl).then(() => {
+          toast.info("Đã copy link vào clipboard", {
+            position: "top-right",
+            autoClose: 3000,
+          });
+        });
+        return { success: true, method: "fallback" };
+      }
+
+      // Sử dụng StayMate Server
+      try {
+        // Đảm bảo URL có trailing slash và endpoint đúng
+        const baseUrl = serverUrl.endsWith('/') ? serverUrl : `${serverUrl}/`;
+        const apiEndpoint = `${baseUrl}api/send-invitation-email`;
+
+        console.log("📡 Calling StayMate Server:", apiEndpoint);
+
+        const response = await fetch(apiEndpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            tenantName,
+            email,
+            invitationUrl,
+            expiresAt,
+          }),
+        });
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          const errorText = await response.text();
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
         }
 
         const result = await response.json();
-        console.log("✅ Email sent via external service:", result);
-        alert(`📧 Email đã được gửi thành công đến ${email}!`);
-        return { success: true, method: "external-service" };
+        console.log("✅ Email sent via StayMate Server:", result);
+        
+        // Hiển thị thông báo thành công
+        toast.success(`📧 Email đã được gửi thành công đến ${email}!`, {
+          position: "top-right",
+          autoClose: 5000,
+        });
+        
+        return { success: true, method: "staymate-server", data: result };
       } catch (serviceError) {
-        console.warn(
-          "External service failed, using fallback method:",
-          serviceError
+        console.error("❌ StayMate Server error:", serviceError);
+        
+        const expiresAtFormatted = new Date(expiresAt).toLocaleString("vi-VN");
+        
+        // Fallback: Hiển thị thông tin trong toast
+        toast.error(
+          `Không thể gửi email tự động. Vui lòng copy link và gửi thủ công.`,
+          {
+            position: "top-right",
+            autoClose: 6000,
+          }
         );
+        
+        // Hiển thị thông tin link trong toast info
+        setTimeout(() => {
+          toast.info(
+            `🔗 Link: ${invitationUrl}\n⏰ Hết hạn: ${expiresAtFormatted}`,
+            {
+              position: "top-right",
+              autoClose: 10000,
+            }
+          );
+        }, 500);
+        
+        // Copy link to clipboard
+        navigator.clipboard.writeText(invitationUrl).then(() => {
+          setTimeout(() => {
+            toast.success("Đã copy link vào clipboard", {
+              position: "top-right",
+              autoClose: 3000,
+            });
+          }, 1500);
+        }).catch(() => {
+          // Clipboard API không available, bỏ qua
+        });
 
-        // Fallback: Hiển thị thông tin trong alert
-        alert(
-          `📧 Email lời mời đã được gửi đến ${email}\n\n🔗 Link: ${invitationUrl}\n\n⏰ Hết hạn: ${new Date(
-            expiresAt
-          ).toLocaleString(
-            "vi-VN"
-          )}\n\n💡 External email service chưa được cấu hình. Vui lòng setup email service.`
-        );
-
-        return { success: true, method: "fallback" };
+        return { success: false, method: "fallback", error: serviceError.message };
       }
     } catch (error) {
       console.error("Error sending email:", error);

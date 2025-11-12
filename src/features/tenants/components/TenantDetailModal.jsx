@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { toast } from "react-toastify";
 import TenantContractsModal from "./TenantContractsModal";
 import TenantBillsModal from "./TenantBillsModal";
 import TenantMoveModal from "./TenantMoveModal";
@@ -34,16 +35,21 @@ const TenantDetailModal = ({ isOpen, onClose, tenant, onEdit, onDelete }) => {
         await handleMoveInLogic(moveData);
       }
 
-      alert(
-        `${
-          moveData.action === "move_out" ? "Chuyển ra" : "Chuyển vào"
-        } thành công!`
+      toast.success(
+        `${moveData.action === "move_out" ? "Chuyển ra" : "Chuyển vào"} thành công!`,
+        {
+          position: "top-right",
+          autoClose: 3000,
+        }
       );
       setShowMoveModal(false);
       onClose(); // Đóng modal chính để refresh data
     } catch (error) {
       console.error("Error processing move:", error);
-      alert("Lỗi khi xử lý chuyển nhà");
+      toast.error("Lỗi khi xử lý chuyển nhà", {
+        position: "top-right",
+        autoClose: 4000,
+      });
     }
   };
 
@@ -190,7 +196,10 @@ const TenantDetailModal = ({ isOpen, onClose, tenant, onEdit, onDelete }) => {
 
   const handleSendInvitation = async () => {
     if (!tenant.email) {
-      alert("Người thuê chưa có email để gửi lời mời");
+      toast.warning("Người thuê chưa có email để gửi lời mời", {
+        position: "top-right",
+        autoClose: 4000,
+      });
       return;
     }
 
@@ -202,23 +211,28 @@ const TenantDetailModal = ({ isOpen, onClose, tenant, onEdit, onDelete }) => {
         `Lời mời tham gia StayMate cho ${tenant.fullname}`
       );
 
-      // Hiển thị thông báo thành công
-      alert(result.message);
-
-      // Hiển thị thông tin invitation nếu có
-      if (result.invitation) {
+      // Thông báo thành công đã được xử lý trong sendInvitationEmail
+      // Chỉ hiển thị thông tin bổ sung nếu cần
+      if (result.invitation && result.method === "fallback") {
         const invitationUrl = `${window.location.origin}/invite/accept?token=${result.invitation.invitation_token}`;
         const expiresAt = new Date(result.invitation.expires_at).toLocaleString(
           "vi-VN"
         );
 
-        alert(
-          `📧 Email: ${tenant.email}\n🔗 Link: ${invitationUrl}\n⏰ Hết hạn: ${expiresAt}`
+        toast.info(
+          `📧 Email: ${tenant.email}\n⏰ Hết hạn: ${expiresAt}`,
+          {
+            position: "top-right",
+            autoClose: 8000,
+          }
         );
       }
     } catch (error) {
       console.error("Error sending invitation:", error);
-      alert(`Lỗi gửi lời mời: ${error.message}`);
+      toast.error(`Lỗi gửi lời mời: ${error.message}`, {
+        position: "top-right",
+        autoClose: 5000,
+      });
     } finally {
       setSendingInvitation(false);
     }
