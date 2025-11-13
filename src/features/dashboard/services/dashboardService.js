@@ -36,45 +36,36 @@ export const dashboardService = {
    */
   async getRoomsStats(userId) {
     try {
-      // Total rooms từ properties của user
-      const { count: total, error: totalError } = await supabase
+      // First get all property IDs for this user
+      const { data: userProperties, error: propsError } = await supabase
+        .from("properties")
+        .select("id")
+        .eq("owner_id", userId);
+
+      if (propsError) throw propsError;
+
+      const propertyIds = (userProperties || []).map((p) => p.id);
+      if (propertyIds.length === 0) {
+        return { total: 0, occupied: 0, vacant: 0 };
+      }
+
+      // Get all rooms for these properties in one query
+      const { data: roomsData, error: roomsError } = await supabase
         .from("rooms")
-        .select(`id, status, properties!inner(owner_id)`, {
-          count: "exact",
-          head: true,
-        })
-        .eq("properties.owner_id", userId);
+        .select("status")
+        .in("property_id", propertyIds);
 
-      if (totalError) throw totalError;
+      if (roomsError) throw roomsError;
 
-      // Occupied rooms
-      const { count: occupied, error: occupiedError } = await supabase
-        .from("rooms")
-        .select(`id, status, properties!inner(owner_id)`, {
-          count: "exact",
-          head: true,
-        })
-        .eq("properties.owner_id", userId)
-        .eq("status", "OCCUPIED");
-
-      if (occupiedError) throw occupiedError;
-
-      // Vacant rooms
-      const { count: vacant, error: vacantError } = await supabase
-        .from("rooms")
-        .select(`id, status, properties!inner(owner_id)`, {
-          count: "exact",
-          head: true,
-        })
-        .eq("properties.owner_id", userId)
-        .eq("status", "VACANT");
-
-      if (vacantError) throw vacantError;
+      const rooms = roomsData || [];
+      const total = rooms.length;
+      const occupied = rooms.filter((r) => r.status === "OCCUPIED").length;
+      const vacant = rooms.filter((r) => r.status === "VACANT").length;
 
       return {
-        total: total || 0,
-        occupied: occupied || 0,
-        vacant: vacant || 0,
+        total,
+        occupied,
+        vacant,
       };
     } catch (error) {
       console.error("Error fetching rooms stats:", error);
@@ -87,30 +78,45 @@ export const dashboardService = {
    */
   async getTenantsStats(userId) {
     try {
-      // Total active tenants
-      const { count: active, error: activeError } = await supabase
+      // First get all property IDs for this user
+      const { data: userProperties, error: propsError } = await supabase
+        .from("properties")
+        .select("id")
+        .eq("owner_id", userId);
+
+      if (propsError) throw propsError;
+
+      const propertyIds = (userProperties || []).map((p) => p.id);
+      if (propertyIds.length === 0) {
+        return { total: 0, active: 0 };
+      }
+
+      // Get all rooms for these properties
+      const { data: userRooms, error: roomsError } = await supabase
+        .from("rooms")
+        .select("id")
+        .in("property_id", propertyIds);
+
+      if (roomsError) throw roomsError;
+
+      const roomIds = (userRooms || []).map((r) => r.id);
+      if (roomIds.length === 0) {
+        return { total: 0, active: 0 };
+      }
+
+      // Get all tenants for these rooms
+      const { data: tenantsData, error: tenantsError } = await supabase
         .from("tenants")
-        .select(`id, is_active, rooms!inner(properties!inner(owner_id))`, {
-          count: "exact",
-          head: true,
-        })
-        .eq("rooms.properties.owner_id", userId)
-        .eq("is_active", true);
+        .select("is_active")
+        .in("room_id", roomIds);
 
-      if (activeError) throw activeError;
+      if (tenantsError) throw tenantsError;
 
-      // Total tenants (including inactive)
-      const { count: total, error: totalError } = await supabase
-        .from("tenants")
-        .select(`id, is_active, rooms!inner(properties!inner(owner_id))`, {
-          count: "exact",
-          head: true,
-        })
-        .eq("rooms.properties.owner_id", userId);
+      const tenants = tenantsData || [];
+      const total = tenants.length;
+      const active = tenants.filter((t) => t.is_active === true).length;
 
-      if (totalError) throw totalError;
-
-      return { total: total || 0, active: active || 0 };
+      return { total, active };
     } catch (error) {
       console.error("Error fetching tenants stats:", error);
       throw error;
@@ -122,30 +128,45 @@ export const dashboardService = {
    */
   async getContractsStats(userId) {
     try {
-      // Total contracts
-      const { count: total, error: totalError } = await supabase
+      // First get all property IDs for this user
+      const { data: userProperties, error: propsError } = await supabase
+        .from("properties")
+        .select("id")
+        .eq("owner_id", userId);
+
+      if (propsError) throw propsError;
+
+      const propertyIds = (userProperties || []).map((p) => p.id);
+      if (propertyIds.length === 0) {
+        return { total: 0, active: 0 };
+      }
+
+      // Get all rooms for these properties
+      const { data: userRooms, error: roomsError } = await supabase
+        .from("rooms")
+        .select("id")
+        .in("property_id", propertyIds);
+
+      if (roomsError) throw roomsError;
+
+      const roomIds = (userRooms || []).map((r) => r.id);
+      if (roomIds.length === 0) {
+        return { total: 0, active: 0 };
+      }
+
+      // Get all contracts for these rooms
+      const { data: contractsData, error: contractsError } = await supabase
         .from("contracts")
-        .select(`id, status, rooms!inner(properties!inner(owner_id))`, {
-          count: "exact",
-          head: true,
-        })
-        .eq("rooms.properties.owner_id", userId);
+        .select("status")
+        .in("room_id", roomIds);
 
-      if (totalError) throw totalError;
+      if (contractsError) throw contractsError;
 
-      // Active contracts
-      const { count: active, error: activeError } = await supabase
-        .from("contracts")
-        .select(`id, status, rooms!inner(properties!inner(owner_id))`, {
-          count: "exact",
-          head: true,
-        })
-        .eq("rooms.properties.owner_id", userId)
-        .eq("status", "ACTIVE");
+      const contracts = contractsData || [];
+      const total = contracts.length;
+      const active = contracts.filter((c) => c.status === "ACTIVE").length;
 
-      if (activeError) throw activeError;
-
-      return { total: total || 0, active: active || 0 };
+      return { total, active };
     } catch (error) {
       console.error("Error fetching contracts stats:", error);
       throw error;
@@ -157,13 +178,38 @@ export const dashboardService = {
    */
   async getRevenueStats(userId) {
     try {
+      // First get all property IDs for this user
+      const { data: userProperties, error: propsError } = await supabase
+        .from("properties")
+        .select("id")
+        .eq("owner_id", userId);
+
+      if (propsError) throw propsError;
+
+      const propertyIds = (userProperties || []).map((p) => p.id);
+      if (propertyIds.length === 0) {
+        return { totalRevenue: 0, monthlyRevenue: 0 };
+      }
+
+      // Get all rooms for these properties
+      const { data: userRooms, error: roomsError } = await supabase
+        .from("rooms")
+        .select("id")
+        .in("property_id", propertyIds);
+
+      if (roomsError) throw roomsError;
+
+      const roomIds = (userRooms || []).map((r) => r.id);
+      if (roomIds.length === 0) {
+        return { totalRevenue: 0, monthlyRevenue: 0 };
+      }
+
       // Total revenue từ bills
       const { data: billsData, error: billsError } = await supabase
         .from("bills")
-        .select(
-          `total_amount, status, created_at, room_id, rooms(property_id, properties(owner_id))`
-        )
-        .eq("rooms.properties.owner_id", userId);
+        .select("total_amount, status, created_at")
+        .in("room_id", roomIds)
+        .eq("status", "PAID");
 
       if (billsError) throw billsError;
 
@@ -198,13 +244,16 @@ export const dashboardService = {
   /**
    * Get occupancy rate
    */
-  async getOccupancyRate(userId) {
+  async getOccupancyRate(userId, roomsStats = null) {
     try {
-      const roomsStats = await this.getRoomsStats(userId);
+      const resolvedRoomsStats =
+        roomsStats ?? (await this.getRoomsStats(userId));
 
-      if (roomsStats.total === 0) return 0;
+      if (resolvedRoomsStats.total === 0) return 0;
 
-      const rate = Math.round((roomsStats.occupied / roomsStats.total) * 100);
+      const rate = Math.round(
+        (resolvedRoomsStats.occupied / resolvedRoomsStats.total) * 100
+      );
       return rate;
     } catch (error) {
       console.error("Error calculating occupancy rate:", error);
@@ -239,44 +288,105 @@ export const dashboardService = {
    */
   async getRevenueTrend(userId, months = 6) {
     try {
+      // First get all property IDs for this user
+      const { data: userProperties, error: propsError } = await supabase
+        .from("properties")
+        .select("id")
+        .eq("owner_id", userId);
+
+      if (propsError) throw propsError;
+
+      const propertyIds = (userProperties || []).map((p) => p.id);
+      if (propertyIds.length === 0) {
+        // Return empty data for all months
+        const now = new Date();
+        const result = [];
+        for (let i = months - 1; i >= 0; i -= 1) {
+          const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          result.push({
+            month: `${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`,
+            revenue: 0,
+            bills: 0,
+          });
+        }
+        return result;
+      }
+
+      // Get all rooms for these properties
+      const { data: userRooms, error: roomsError } = await supabase
+        .from("rooms")
+        .select("id")
+        .in("property_id", propertyIds);
+
+      if (roomsError) throw roomsError;
+
+      const roomIds = (userRooms || []).map((r) => r.id);
+      if (roomIds.length === 0) {
+        // Return empty data for all months
+        const now = new Date();
+        const result = [];
+        for (let i = months - 1; i >= 0; i -= 1) {
+          const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          result.push({
+            month: `${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`,
+            revenue: 0,
+            bills: 0,
+          });
+        }
+        return result;
+      }
+
+      const now = new Date();
+      const startDate = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+
       const { data, error } = await supabase
         .from("bills")
-        .select(
-          `total_amount, created_at, status, room_id, rooms(properties(owner_id))`
-        )
-        .eq("rooms.properties.owner_id", userId);
+        .select("total_amount, created_at, status")
+        .in("room_id", roomIds)
+        .eq("status", "PAID")
+        .gte("created_at", startDate.toISOString());
 
       if (error) throw error;
 
       // Group by month
-      const monthlyData = {};
+      const monthlyData = new Map();
 
       (data || []).forEach((bill) => {
         const date = new Date(bill.created_at);
-        const monthKey = `${date.getFullYear()}-${String(
-          date.getMonth() + 1
-        ).padStart(2, "0")}`;
+        if (Number.isNaN(date.getTime())) {
+          return;
+        }
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+          2,
+          "0"
+        )}`;
 
-        if (!monthlyData[monthKey]) {
-          monthlyData[monthKey] = { revenue: 0, count: 0 };
+        if (!monthlyData.has(key)) {
+          monthlyData.set(key, { revenue: 0, count: 0 });
         }
 
-        monthlyData[monthKey].revenue += parseFloat(bill.total_amount) || 0;
-        monthlyData[monthKey].count += 1;
+        const monthEntry = monthlyData.get(key);
+        monthEntry.revenue += parseFloat(bill.total_amount) || 0;
+        monthEntry.count += 1;
       });
 
-      // Sort by month and return last 6 months
-      const sorted = Object.entries(monthlyData)
-        .sort(([a], [b]) => b.localeCompare(a))
-        .slice(0, months)
-        .reverse()
-        .map(([month, data]) => ({
-          month,
-          revenue: data.revenue,
-          bills: data.count,
-        }));
+      const result = [];
+      for (let i = months - 1; i >= 0; i -= 1) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+          2,
+          "0"
+        )}`;
+        const entry = monthlyData.get(key) || { revenue: 0, count: 0 };
 
-      return sorted;
+        result.push({
+          month: `${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`,
+          revenue: entry.revenue,
+          bills: entry.count,
+        });
+      }
+
+      return result;
     } catch (error) {
       console.error("Error fetching revenue trend:", error);
       throw error;
@@ -294,7 +404,6 @@ export const dashboardService = {
         tenantsStats,
         contractsStats,
         revenueStats,
-        occupancyRate,
         recentActivities,
         revenueTrend,
       ] = await Promise.all([
@@ -303,10 +412,11 @@ export const dashboardService = {
         this.getTenantsStats(userId),
         this.getContractsStats(userId),
         this.getRevenueStats(userId),
-        this.getOccupancyRate(userId),
         this.getRecentActivities(userId, 10),
         this.getRevenueTrend(userId, 6),
       ]);
+
+      const occupancyRate = await this.getOccupancyRate(userId, roomsStats);
 
       return {
         properties: propertiesStats,

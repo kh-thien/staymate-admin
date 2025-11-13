@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import {
   BuildingOfficeIcon,
   HomeIcon,
@@ -13,6 +14,7 @@ import StatsCard from "../components/StatsCard";
 import RevenueChart from "../components/RevenueChart";
 import RecentActivity from "../components/RecentActivity";
 const Dashboard = () => {
+  const navigate = useNavigate();
   const {
     properties,
     rooms,
@@ -88,32 +90,32 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
           title="Tổng số nhà trọ"
-          value={properties.total}
-          subtitle={`${properties.active} đang hoạt động`}
+          value={properties?.total || 0}
+          subtitle={`${properties?.active || 0} đang hoạt động`}
           icon={BuildingOfficeIcon}
           color="blue"
           loading={loading}
         />
         <StatsCard
           title="Tổng số phòng"
-          value={rooms.total}
-          subtitle={`${rooms.occupied} có người, ${rooms.vacant} trống`}
+          value={rooms?.total || 0}
+          subtitle={`${rooms?.occupied || 0} có người, ${rooms?.vacant || 0} trống`}
           icon={HomeIcon}
           color="green"
           loading={loading}
         />
         <StatsCard
           title="Tổng số người thuê"
-          value={tenants.total}
-          subtitle={`${tenants.active} đang hoạt động`}
+          value={tenants?.total || 0}
+          subtitle={`${tenants?.active || 0} đang hoạt động`}
           icon={UserGroupIcon}
           color="purple"
           loading={loading}
         />
         <StatsCard
           title="Hợp đồng"
-          value={contracts.total}
-          subtitle={`${contracts.active} đang hoạt động`}
+          value={contracts?.total || 0}
+          subtitle={`${contracts?.active || 0} đang hoạt động`}
           icon={DocumentTextIcon}
           color="indigo"
           loading={loading}
@@ -124,21 +126,21 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatsCard
           title="Tổng doanh thu"
-          value={`${revenue.totalRevenue.toLocaleString("vi-VN")} VNĐ`}
+          value={`${(revenue?.totalRevenue || 0).toLocaleString("vi-VN")} VNĐ`}
           icon={CurrencyDollarIcon}
           color="green"
           loading={loading}
         />
         <StatsCard
           title="Doanh thu tháng này"
-          value={`${revenue.monthlyRevenue.toLocaleString("vi-VN")} VNĐ`}
+          value={`${(revenue?.monthlyRevenue || 0).toLocaleString("vi-VN")} VNĐ`}
           icon={ChartBarIcon}
           color="blue"
           loading={loading}
         />
         <StatsCard
           title="Tỷ lệ lấp đầy"
-          value={`${occupancyRate}%`}
+          value={`${occupancyRate || 0}%`}
           icon={HomeIcon}
           color="yellow"
           loading={loading}
@@ -147,8 +149,8 @@ const Dashboard = () => {
 
       {/* Charts and Activities */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RevenueChart data={revenueTrend} loading={loading} />
-        <RecentActivity activities={recentActivities} loading={loading} />
+        <RevenueChart data={revenueTrend || []} loading={loading} />
+        <RecentActivity activities={recentActivities || []} loading={loading} />
       </div>
 
       {/* Quick Actions */}
@@ -157,7 +159,10 @@ const Dashboard = () => {
           Thao tác nhanh
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-left">
+          <button
+            onClick={() => navigate("/contracts")}
+            className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-left"
+          >
             <div className="flex items-center space-x-3">
               <DocumentTextIcon className="h-6 w-6 text-blue-600" />
               <div>
@@ -167,7 +172,10 @@ const Dashboard = () => {
             </div>
           </button>
 
-          <button className="p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors text-left">
+          <button
+            onClick={() => navigate("/tenants")}
+            className="p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors text-left"
+          >
             <div className="flex items-center space-x-3">
               <UserGroupIcon className="h-6 w-6 text-green-600" />
               <div>
@@ -177,7 +185,10 @@ const Dashboard = () => {
             </div>
           </button>
 
-          <button className="p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors text-left">
+          <button
+            onClick={() => navigate("/property")}
+            className="p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors text-left"
+          >
             <div className="flex items-center space-x-3">
               <HomeIcon className="h-6 w-6 text-purple-600" />
               <div>
@@ -187,7 +198,10 @@ const Dashboard = () => {
             </div>
           </button>
 
-          <button className="p-4 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition-colors text-left">
+          <button
+            onClick={() => navigate("/bills")}
+            className="p-4 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition-colors text-left"
+          >
             <div className="flex items-center space-x-3">
               <CurrencyDollarIcon className="h-6 w-6 text-yellow-600" />
               <div>

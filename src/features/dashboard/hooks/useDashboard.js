@@ -24,7 +24,9 @@ export const useDashboard = () => {
   /**
    * Fetch dashboard data từ service
    */
-  const fetchDashboardData = useCallback(async () => {
+  const fetchDashboardData = useCallback(async (options = {}) => {
+    const { showSkeleton = true } = options;
+
     if (!userId) {
       setError("Chưa đăng nhập");
       setLoading(false);
@@ -32,6 +34,9 @@ export const useDashboard = () => {
     }
 
     try {
+      if (showSkeleton) {
+        setLoading(true);
+      }
       setError(null);
       const data = await dashboardService.getDashboardOverview(userId);
       setDashboardData(data);
@@ -49,7 +54,7 @@ export const useDashboard = () => {
   const refresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await fetchDashboardData();
+      await fetchDashboardData({ showSkeleton: false });
     } finally {
       setRefreshing(false);
     }
@@ -62,7 +67,7 @@ export const useDashboard = () => {
     if (!userId) return;
 
     // Fetch initial data
-    fetchDashboardData();
+    fetchDashboardData({ showSkeleton: true });
 
     // Setup real-time subscriptions sẽ được triển khai khi có Realtime subscriptions
     // Hiện tại dùng polling hoặc manual refresh
