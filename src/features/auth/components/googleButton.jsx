@@ -11,18 +11,18 @@ export default function GoogleButton({
   onClick,
 }) {
   const getButtonText = () => {
-    if (loading) return "Loading...";
+    if (loading) return "Đang tải...";
     if (text) return text; // Custom text override
 
     switch (variant) {
       case "signin":
-        return "Sign in with Google";
+        return "Đăng nhập với Google";
       case "signup":
-        return "Sign up with Google";
+        return "Đăng ký với Google";
       case "continue":
-        return "Continue with Google";
+        return "Tiếp tục với Google";
       default:
-        return "Sign in with Google";
+        return "Đăng nhập với Google";
     }
   };
 

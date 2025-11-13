@@ -60,8 +60,8 @@ const SimpleSignUpForm = () => {
 
       if (result.success) {
         const message = result.needsConfirmation
-          ? "Registration successful! Please check your email to verify your account before signing in."
-          : "Registration successful! You can now sign in.";
+          ? "Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản trước khi đăng nhập."
+          : "Đăng ký thành công! Bạn có thể đăng nhập ngay bây giờ.";
 
         // Show toast notification
         toast.success(message, {
@@ -88,7 +88,7 @@ const SimpleSignUpForm = () => {
         const errorMsg =
           result.error?.message ||
           result.message ||
-          "Registration failed. Please try again.";
+          "Đăng ký thất bại. Vui lòng thử lại.";
         toast.error(errorMsg, {
           position: "top-right",
           autoClose: 4000,
@@ -139,10 +139,10 @@ const SimpleSignUpForm = () => {
           id="fullName"
           name="fullName"
           type="text"
-          label="Full Name"
+          label="Họ và tên"
           value={formData.fullName}
           onChange={(e) => handleChange("fullName", e.target.value)}
-          placeholder="Enter your full name"
+          placeholder="Nhập họ và tên của bạn"
           error={errors.fullName}
           disabled={isLoading}
         />
@@ -151,10 +151,10 @@ const SimpleSignUpForm = () => {
           id="signup-email"
           name="email"
           type="email"
-          label="Email Address"
+          label="Địa chỉ Email"
           value={formData.email}
           onChange={(e) => handleChange("email", e.target.value)}
-          placeholder="Enter your email address"
+          placeholder="Nhập địa chỉ email của bạn"
           error={errors.email}
           disabled={isLoading}
         />
@@ -164,10 +164,10 @@ const SimpleSignUpForm = () => {
             id="signup-password"
             name="password"
             type="password"
-            label="Password"
+            label="Mật khẩu"
             value={formData.password}
             onChange={(e) => handleChange("password", e.target.value)}
-            placeholder="Create a password (min 6 characters)"
+            placeholder="Tạo mật khẩu (tối thiểu 6 ký tự)"
             error={errors.password}
             disabled={isLoading}
           />
@@ -178,10 +178,10 @@ const SimpleSignUpForm = () => {
           id="confirmPassword"
           name="confirmPassword"
           type="password"
-          label="Confirm Password"
+          label="Xác nhận mật khẩu"
           value={formData.confirmPassword}
           onChange={(e) => handleChange("confirmPassword", e.target.value)}
-          placeholder="Confirm your password"
+          placeholder="Xác nhận mật khẩu của bạn"
           error={errors.confirmPassword}
           disabled={isLoading}
         />
@@ -201,19 +201,19 @@ const SimpleSignUpForm = () => {
           </div>
           <div className="ml-3 text-sm">
             <label htmlFor="accept-terms" className="text-gray-600">
-              I agree to the{" "}
+              Tôi đồng ý với{" "}
               <Link
                 to="/terms"
                 className="font-medium text-indigo-600 hover:text-indigo-500"
               >
-                Terms and Conditions
+                Điều khoản và Điều kiện
               </Link>{" "}
-              and{" "}
+              và{" "}
               <Link
                 to="/privacy"
                 className="font-medium text-indigo-600 hover:text-indigo-500"
               >
-                Privacy Policy
+                Chính sách Bảo mật
               </Link>
             </label>
           </div>
@@ -233,20 +233,20 @@ const SimpleSignUpForm = () => {
           isLoading={isLoading}
           disabled={isLoading}
         >
-          {isLoading ? "Creating Account..." : "Create Account"}
+          {isLoading ? "Đang tạo tài khoản..." : "Tạo tài khoản"}
         </Button>
 
-        <Divider text="Or continue with" />
+        <Divider text="Hoặc tiếp tục với" />
 
-        <GoogleButton onClick={handleGoogleSignUp} disabled={isLoading} />
+        <GoogleButton onClick={handleGoogleSignUp} disabled={isLoading} variant="signup" />
 
         <p className="text-center text-sm text-gray-600">
-          Already have an account?{" "}
+          Đã có tài khoản?{" "}
           <Link
             to="/signin"
             className="font-medium text-indigo-600 hover:text-indigo-500"
           >
-            Sign in here
+            Đăng nhập ngay
           </Link>
         </p>
       </form>

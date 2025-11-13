@@ -21,10 +21,12 @@ import Reports from "../features/reports/pages/reports";
 import Meters from "../features/meters/pages/meters";
 import InviteAccept from "../features/tenants/pages/InviteAccept";
 import { ChatPage } from "../features/chat";
+import ErrorPage from "./errorPage";
 
 const router = createBrowserRouter([
   {
     element: <AuthLayout />,
+    errorElement: <ErrorPage />,
     children: [
       // Public routes - không cần đăng nhập
       {
@@ -117,6 +119,11 @@ const router = createBrowserRouter([
             element: <ChatPage />,
           },
         ],
+      },
+      // Catch-all route for 404 - must be last
+      {
+        path: "*",
+        element: <ErrorPage />,
       },
     ],
   },

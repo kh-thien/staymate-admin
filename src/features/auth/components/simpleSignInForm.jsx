@@ -44,7 +44,7 @@ const SimpleSignInForm = () => {
 
       if (result.success) {
         // Show toast notification
-        toast.success("Welcome back! Redirecting...", {
+        toast.success("Chào mừng trở lại! Đang chuyển hướng...", {
           position: "top-right",
           autoClose: 2000,
         });
@@ -58,7 +58,7 @@ const SimpleSignInForm = () => {
         const errorMsg =
           result.error?.message ||
           result.message ||
-          "Login failed. Please check your credentials.";
+          "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin đăng nhập.";
         toast.error(errorMsg, {
           position: "top-right",
           autoClose: 4000,
@@ -107,7 +107,7 @@ const SimpleSignInForm = () => {
           label="Email"
           value={formData.email}
           onChange={(e) => handleChange("email", e.target.value)}
-          placeholder="Enter your email"
+          placeholder="Nhập email của bạn"
           disabled={isLoading}
           autoFocus
         />
@@ -116,10 +116,10 @@ const SimpleSignInForm = () => {
           id="signin-password"
           name="password"
           type="password"
-          label="Password"
+          label="Mật khẩu"
           value={formData.password}
           onChange={(e) => handleChange("password", e.target.value)}
-          placeholder="Enter your password"
+          placeholder="Nhập mật khẩu của bạn"
           disabled={isLoading}
         />
 
@@ -128,7 +128,7 @@ const SimpleSignInForm = () => {
             to="/forgot"
             className="text-sm text-indigo-600 hover:text-indigo-500 font-medium transition-colors duration-200"
           >
-            Forgot password?
+            Quên mật khẩu?
           </Link>
         </div>
 
@@ -138,20 +138,20 @@ const SimpleSignInForm = () => {
           isLoading={isLoading}
           disabled={isLoading}
         >
-          {isLoading ? "Signing in..." : "Sign In"}
+          {isLoading ? "Đang đăng nhập..." : "Đăng nhập"}
         </Button>
 
-        <Divider text="Or continue with" />
+        <Divider text="Hoặc tiếp tục với" />
 
-        <GoogleButton onClick={handleGoogleSignIn} disabled={isLoading} />
+        <GoogleButton onClick={handleGoogleSignIn} disabled={isLoading} variant="signin" />
 
         <p className="text-center text-sm text-gray-600">
-          Don't have an account?{" "}
+          Chưa có tài khoản?{" "}
           <Link
             to="/signup"
             className="font-medium text-indigo-600 hover:text-indigo-500"
           >
-            Sign up here
+            Đăng ký ngay
           </Link>
         </p>
       </form>

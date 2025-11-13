@@ -11,8 +11,8 @@ export default function SignUp() {
   return (
     <AuthLayout>
       <BrandLogo
-        title="Create your account"
-        subtitle="Join us today and start your journey"
+        title="Tạo tài khoản"
+        subtitle="Tham gia cùng chúng tôi ngay hôm nay"
       />
       <SimpleSignUpForm />
     </AuthLayout>

@@ -11,8 +11,8 @@ export default function SignIn() {
   return (
     <AuthLayout>
       <BrandLogo
-        title="Welcome back"
-        subtitle="Enter your email and password to sign in"
+        title="Chào mừng trở lại"
+        subtitle="Nhập email và mật khẩu để đăng nhập"
       />
       <SimpleSignInForm />
     </AuthLayout>

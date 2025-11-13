@@ -42,7 +42,7 @@ export default function Intro() {
           Chào mừng đến với StayMate!
         </h1>
         <p className="text-gray-600 mb-8">
-          Nền tảng quản lý lưu trú hiện đại, tiện lợi và an toàn.
+          Nền tảng quản lý phòng trọ hiện đại, tiện lợi và an toàn.
         </p>
 
         {user ? (
