@@ -20,6 +20,7 @@ import Payments from "../features/payments/pages/payments";
 import Reports from "../features/reports/pages/reports";
 import Meters from "../features/meters/pages/meters";
 import InviteAccept from "../features/tenants/pages/InviteAccept";
+import SupportPage from "../features/support/pages/support";
 import { ChatPage } from "../features/chat";
 import ErrorPage from "./errorPage";
 
@@ -56,6 +57,10 @@ const router = createBrowserRouter([
       {
         path: "/invite/accept",
         element: <InviteAccept />,
+      },
+      {
+        path: "/support",
+        element: <SupportPage />,
       },
 
       // Required login routes - tất cả routes bên trong đều cần đăng nhập
