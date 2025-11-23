@@ -101,12 +101,30 @@ export const financialReportService = {
 
       const roomIds = userRooms.map((r) => r.id);
 
-      const { data: bills, error: billsError } = await supabase
+      // Calculate date range for filtering (get earliest and latest dates from periods)
+      // periods đã được khai báo ở dòng 74, không cần khai báo lại
+      const allStartDates = periods.map(p => p.startDate).sort();
+      const allEndDates = periods.map(p => p.endDate).sort();
+      const earliestDate = allStartDates[0] || null;
+      const latestDate = allEndDates[allEndDates.length - 1] || null;
+
+      // Build query with date range filter if available
+      let billsQuery = supabase
         .from("bills")
         .select("*")
         .in("room_id", roomIds)
-        .is("deleted_at", null)
-        .order("period_start", { ascending: false });
+        .is("deleted_at", null);
+      
+      // Add date range filter to reduce data fetched
+      if (earliestDate && latestDate) {
+        billsQuery = billsQuery
+          .gte("period_start", earliestDate)
+          .lte("period_start", latestDate);
+      }
+      
+      billsQuery = billsQuery.order("period_start", { ascending: false });
+
+      const { data: bills, error: billsError } = await billsQuery;
 
       if (billsError) throw billsError;
 
@@ -295,12 +313,29 @@ export const financialReportService = {
 
       const roomIds = propertyRooms.map((r) => r.id);
 
-      const { data: bills, error: billsError } = await supabase
+      // Calculate date range for filtering (get earliest and latest dates from periods)
+      const allStartDates = periods.map(p => p.startDate).sort();
+      const allEndDates = periods.map(p => p.endDate).sort();
+      const earliestDate = allStartDates[0] || null;
+      const latestDate = allEndDates[allEndDates.length - 1] || null;
+
+      // Build query with date range filter if available
+      let billsQuery = supabase
         .from("bills")
         .select("*")
         .in("room_id", roomIds)
-        .is("deleted_at", null)
-        .order("period_start", { ascending: false });
+        .is("deleted_at", null);
+      
+      // Add date range filter to reduce data fetched
+      if (earliestDate && latestDate) {
+        billsQuery = billsQuery
+          .gte("period_start", earliestDate)
+          .lte("period_start", latestDate);
+      }
+      
+      billsQuery = billsQuery.order("period_start", { ascending: false });
+
+      const { data: bills, error: billsError } = await billsQuery;
 
       if (billsError) throw billsError;
 
@@ -476,12 +511,29 @@ export const financialReportService = {
     try {
       const periods = calculatePeriods(periodType, limit, dateFilter || {});
 
-      const { data: bills, error: billsError } = await supabase
+      // Calculate date range for filtering (get earliest and latest dates from periods)
+      const allStartDates = periods.map(p => p.startDate).sort();
+      const allEndDates = periods.map(p => p.endDate).sort();
+      const earliestDate = allStartDates[0] || null;
+      const latestDate = allEndDates[allEndDates.length - 1] || null;
+
+      // Build query with date range filter if available
+      let billsQuery = supabase
         .from("bills")
         .select("*")
         .eq("room_id", roomId)
-        .is("deleted_at", null)
-        .order("period_start", { ascending: false });
+        .is("deleted_at", null);
+      
+      // Add date range filter to reduce data fetched
+      if (earliestDate && latestDate) {
+        billsQuery = billsQuery
+          .gte("period_start", earliestDate)
+          .lte("period_start", latestDate);
+      }
+      
+      billsQuery = billsQuery.order("period_start", { ascending: false });
+
+      const { data: bills, error: billsError } = await billsQuery;
 
       if (billsError) throw billsError;
 

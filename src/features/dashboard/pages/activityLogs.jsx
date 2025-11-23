@@ -49,15 +49,31 @@ const ActivityLogs = () => {
 
   const getActivityIcon = (type) => {
     const iconClass = "h-5 w-5";
-    switch (type?.toLowerCase()) {
+    let entityType = type?.toLowerCase();
+
+    // Normalize entity type (handle both singular and plural)
+    if (entityType) {
+      if (entityType === 'properties') entityType = 'property';
+      else if (entityType === 'contracts') entityType = 'contract';
+      else if (entityType === 'rooms') entityType = 'room';
+      else if (entityType === 'tenants') entityType = 'tenant';
+      else if (entityType === 'bills') entityType = 'bill';
+    }
+
+    switch (entityType) {
       case "tenant":
+      case "tenants":
       case "user":
         return <UserCircleIcon className={iconClass} />;
       case "property":
+      case "properties":
       case "room":
+      case "rooms":
         return <HomeIcon className={iconClass} />;
       case "contract":
+      case "contracts":
       case "bill":
+      case "bills":
         return <DocumentTextIcon className={iconClass} />;
       case "payment":
         return <CurrencyDollarIcon className={iconClass} />;
@@ -69,12 +85,29 @@ const ActivityLogs = () => {
   };
 
   const getActivityColor = (action) => {
-    switch (action?.toUpperCase()) {
+    if (!action) return "text-gray-600 bg-gray-50";
+    
+    // Normalize action: extract base action from strings like "Created properties", "Updated contracts"
+    let actionUpper = action.toUpperCase();
+    
+    // Handle compound actions like "Created properties", "Updated contracts"
+    if (actionUpper.includes("CREATED")) {
+      actionUpper = "CREATED";
+    } else if (actionUpper.includes("UPDATED")) {
+      actionUpper = "UPDATED";
+    } else if (actionUpper.includes("DELETED")) {
+      actionUpper = "DELETED";
+    }
+    
+    switch (actionUpper) {
       case "CREATE":
+      case "CREATED":
         return "text-green-600 bg-green-50";
       case "UPDATE":
+      case "UPDATED":
         return "text-blue-600 bg-blue-50";
       case "DELETE":
+      case "DELETED":
         return "text-red-600 bg-red-50";
       case "LOGIN":
         return "text-purple-600 bg-purple-50";
@@ -116,7 +149,7 @@ const ActivityLogs = () => {
   // Filter activities
   const filteredActivities = activities.filter((activity) => {
     const matchesSearch = searchTerm
-      ? activity.description
+      ? (activity.friendlyDescription || activity.description || "")
           ?.toLowerCase()
           .includes(searchTerm.toLowerCase()) ||
         activity.action?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -249,7 +282,9 @@ const ActivityLogs = () => {
                     activity.entity_type || activity.type || "";
                   const activityDate =
                     activity.created_at || activity.createdAt || "";
+                  // Use friendlyDescription if available (from enriched data), otherwise fallback
                   const activityTitle =
+                    activity.friendlyDescription ||
                     activity.description ||
                     activity.action ||
                     activity.title ||
@@ -277,18 +312,6 @@ const ActivityLogs = () => {
                               <p className="text-sm font-medium text-gray-900">
                                 {activityTitle}
                               </p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span
-                                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getActivityColor(
-                                    activity.action
-                                  )}`}
-                                >
-                                  {getActionText(activity.action)}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  {activityType}
-                                </span>
-                              </div>
                             </div>
                             <time className="flex-shrink-0 text-sm text-gray-500">
                               {formatDate(activityDate)}

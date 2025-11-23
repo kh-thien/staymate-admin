@@ -99,15 +99,50 @@ export const tenantService = {
   // Lấy danh sách tenants với filters
   async getTenants(filters = {}) {
     try {
+      // If created_by is provided, get all rooms of that user's properties first
+      // Then filter tenants by those rooms (not by created_by)
+      // This ensures consistency with dashboard logic
+      let roomIds = null;
+      if (filters.created_by) {
+        // Get all properties owned by this user
+        const { data: userProperties, error: propsError } = await supabase
+          .from("properties")
+          .select("id")
+          .eq("owner_id", filters.created_by)
+          .is("deleted_at", null);
+
+        if (propsError) throw propsError;
+
+        const propertyIds = (userProperties || []).map((p) => p.id);
+        
+        if (propertyIds.length > 0) {
+          // Get all rooms for these properties
+          const { data: userRooms, error: roomsError } = await supabase
+            .from("rooms")
+            .select("id")
+            .in("property_id", propertyIds)
+            .is("deleted_at", null);
+
+          if (roomsError) throw roomsError;
+          roomIds = (userRooms || []).map((r) => r.id);
+        }
+      }
+
       let query = supabase.from("tenants").select(`
           *,
           rooms!room_id(code, name, property_id, properties(name, address)),
           tenant_emergency_contacts(*)
         `);
 
-      // Filter by created_by if provided
-      if (filters.created_by) {
-        query = query.eq("created_by", filters.created_by);
+      // Filter by room_ids (all rooms of user's properties) instead of created_by
+      // This ensures we show all tenants in user's rooms, not just tenants created by user
+      if (roomIds && roomIds.length > 0) {
+        // Include tenants in user's rooms
+        // Note: We'll also include tenants without room_id created by user in post-processing
+        query = query.in("room_id", roomIds);
+      } else if (filters.created_by) {
+        // If user has no properties/rooms, only show tenants without room_id created by user
+        query = query.eq("created_by", filters.created_by).is("room_id", null);
       }
 
       // Apply filters
@@ -154,6 +189,31 @@ export const tenantService = {
 
       // Filter by property after getting data (client-side filter)
       let filteredData = data || [];
+      
+      // Also include tenants without room_id created by user (if created_by filter is provided)
+      // This ensures we show tenants not yet assigned to a room
+      if (filters.created_by && roomIds && roomIds.length > 0) {
+        // Fetch tenants without room_id created by user
+        const { data: tenantsWithoutRoom, error: tenantsWithoutRoomError } = await supabase
+          .from("tenants")
+          .select(`
+            *,
+            rooms!room_id(code, name, property_id, properties(name, address)),
+            tenant_emergency_contacts(*)
+          `)
+          .eq("created_by", filters.created_by)
+          .is("room_id", null)
+          .is("deleted_at", null)
+          .eq("is_active", true);
+        
+        if (!tenantsWithoutRoomError && tenantsWithoutRoom) {
+          // Merge with existing data (avoid duplicates)
+          const existingIds = new Set(filteredData.map(t => t.id));
+          const newTenants = tenantsWithoutRoom.filter(t => !existingIds.has(t.id));
+          filteredData = [...filteredData, ...newTenants];
+        }
+      }
+      
       if (filters.property && filters.property !== "all") {
         filteredData = filteredData.filter(
           (tenant) =>

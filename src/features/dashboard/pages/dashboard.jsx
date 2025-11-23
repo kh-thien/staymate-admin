@@ -99,7 +99,7 @@ const Dashboard = () => {
         <StatsCard
           title="Tổng số phòng"
           value={rooms?.total || 0}
-          subtitle={`${rooms?.occupied || 0} có người, ${rooms?.vacant || 0} trống`}
+          subtitle={`${rooms?.occupied || 0} có người, ${rooms?.vacant || 0} trống${(rooms?.maintenance || 0) > 0 ? `, ${rooms.maintenance} đang bảo trì` : ""}${(rooms?.deposited || 0) > 0 ? `, ${rooms.deposited} đã đặt cọc` : ""}`}
           icon={HomeIcon}
           color="green"
           loading={loading}

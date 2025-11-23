@@ -8,7 +8,7 @@ export const useDashboard = () => {
 
   const [dashboardData, setDashboardData] = useState({
     properties: { total: 0, active: 0 },
-    rooms: { total: 0, occupied: 0, vacant: 0 },
+    rooms: { total: 0, occupied: 0, vacant: 0, maintenance: 0, deposited: 0 },
     tenants: { total: 0, active: 0 },
     contracts: { total: 0, active: 0 },
     revenue: { totalRevenue: 0, monthlyRevenue: 0 },

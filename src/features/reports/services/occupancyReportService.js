@@ -184,4 +184,117 @@ export const occupancyReportService = {
       throw error;
     }
   },
+
+  /**
+   * Calculate occupancy trend from contracts (based on start_date, not report_date)
+   * This gives accurate trend data showing when rooms were actually rented
+   * @param {string} propertyId - Property ID (null for all properties)
+   * @param {number} months - Number of months to calculate trend
+   */
+  async getOccupancyTrend(propertyId, months = 12) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
+      // Get property IDs
+      let propertyIds = [];
+      if (propertyId) {
+        propertyIds = [propertyId];
+      } else {
+        const { data: userProperties, error: propertiesError } = await supabase
+          .from("properties")
+          .select("id")
+          .eq("owner_id", user.id)
+          .is("deleted_at", null);
+        
+        if (propertiesError) throw propertiesError;
+        if (!userProperties || userProperties.length === 0) {
+          return [];
+        }
+        propertyIds = userProperties.map((p) => p.id);
+      }
+
+      // Get all rooms for these properties
+      const { data: rooms, error: roomsError } = await supabase
+        .from("rooms")
+        .select("id, property_id, status")
+        .in("property_id", propertyIds)
+        .is("deleted_at", null);
+
+      if (roomsError) throw roomsError;
+      if (!rooms || rooms.length === 0) {
+        return [];
+      }
+
+      const roomIds = rooms.map(r => r.id);
+      const totalRooms = rooms.length;
+
+      // Get all contracts for these rooms
+      const { data: contracts, error: contractsError } = await supabase
+        .from("contracts")
+        .select("id, room_id, status, start_date, end_date")
+        .in("room_id", roomIds)
+        .is("deleted_at", null);
+
+      if (contractsError) throw contractsError;
+
+      // Calculate occupancy rate for each month
+      const today = new Date();
+      const monthlyData = [];
+
+      for (let i = months - 1; i >= 0; i--) {
+        const monthStart = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const monthEnd = new Date(today.getFullYear(), today.getMonth() - i + 1, 0);
+        const monthEndDate = new Date(monthEnd);
+        monthEndDate.setHours(23, 59, 59, 999); // End of day
+
+        // Count rooms that were occupied during this month
+        // A room is occupied if:
+        // 1. Contract status is ACTIVE
+        // 2. Contract started before or during this month
+        // 3. Contract hasn't ended yet, or ended after this month started
+        const occupiedInMonth = contracts.filter(c => {
+          if (c.status !== 'ACTIVE') return false;
+          
+          const startDate = c.start_date ? new Date(c.start_date) : null;
+          const endDate = c.end_date ? new Date(c.end_date) : null;
+          
+          if (!startDate) return false;
+          
+          // Contract started before or during this month
+          const startedBeforeOrDuring = startDate <= monthEndDate;
+          
+          // Contract hasn't ended yet, or ended after this month started
+          const notEndedOrEndedAfter = !endDate || endDate >= monthStart;
+          
+          return startedBeforeOrDuring && notEndedOrEndedAfter;
+        }).length;
+
+        // Count vacant rooms (total - occupied)
+        const vacantInMonth = totalRooms - occupiedInMonth;
+        
+        // Calculate occupancy rate
+        const occupancyRate = totalRooms > 0 ? (occupiedInMonth / totalRooms) * 100 : 0;
+
+        monthlyData.push({
+          date: monthStart.toISOString().split('T')[0],
+          month: monthStart.toLocaleDateString("vi-VN", {
+            month: "short",
+            year: "numeric",
+          }),
+          occupancyRate: parseFloat(occupancyRate.toFixed(2)),
+          occupied: occupiedInMonth,
+          vacant: vacantInMonth,
+          total: totalRooms,
+        });
+      }
+
+      return monthlyData;
+    } catch (error) {
+      console.error("Error calculating occupancy trend:", error);
+      throw error;
+    }
+  },
 };

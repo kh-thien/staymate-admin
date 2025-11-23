@@ -205,9 +205,33 @@ export const useFinancialReport = (propertyId, periodType = "MONTHLY", autoGener
     
     const channel = supabase.channel(channelName);
 
-    // Subscribe to bills changes with property filter
+    // Get room IDs for property filtering (bills don't have property_id, only room_id)
+    const setupRealtimeSubscription = async () => {
+      let roomIdsForFilter = [];
+      
     if (propertyId) {
-      // Filter bills by property_id (bills have property_id)
+        try {
+          // Get all room IDs for this property
+          const { data: rooms, error: roomsError } = await supabase
+            .from("rooms")
+            .select("id")
+            .eq("property_id", propertyId)
+            .is("deleted_at", null);
+          
+          if (!roomsError && rooms) {
+            roomIdsForFilter = rooms.map(r => r.id);
+          }
+        } catch (error) {
+          console.error("Error fetching rooms for realtime filter:", error);
+        }
+      }
+
+      // Subscribe to bills changes with room filter
+      if (propertyId && roomIdsForFilter.length > 0) {
+        // Filter bills by room_id (since bills don't have property_id directly)
+        // If roomId is specified, filter to that specific room
+        const filterRoomIds = roomId ? [roomId] : roomIdsForFilter;
+        
       channel
         .on(
           "postgres_changes",
@@ -215,11 +239,9 @@ export const useFinancialReport = (propertyId, periodType = "MONTHLY", autoGener
             event: "INSERT",
             schema: "public",
             table: "bills",
-            filter: `property_id=eq.${propertyId}`,
+              filter: `room_id=in.(${filterRoomIds.join(',')})`,
           },
           (payload) => {
-            // If roomId is specified, check if bill is for that room
-            if (roomId && payload.new?.room_id !== roomId) return;
             console.log("🔔 REALTIME: New bill created, refreshing financial report");
             debouncedRefetch();
           }
@@ -230,10 +252,9 @@ export const useFinancialReport = (propertyId, periodType = "MONTHLY", autoGener
             event: "UPDATE",
             schema: "public",
             table: "bills",
-            filter: `property_id=eq.${propertyId}`,
+              filter: `room_id=in.(${filterRoomIds.join(',')})`,
           },
           (payload) => {
-            if (roomId && payload.new?.room_id !== roomId) return;
             console.log("🔔 REALTIME: Bill updated, refreshing financial report");
             debouncedRefetch();
           }
@@ -244,7 +265,7 @@ export const useFinancialReport = (propertyId, periodType = "MONTHLY", autoGener
             event: "DELETE",
             schema: "public",
             table: "bills",
-            filter: `property_id=eq.${propertyId}`,
+              filter: `room_id=in.(${filterRoomIds.join(',')})`,
           },
           (payload) => {
             console.log("🔔 REALTIME: Bill deleted, refreshing financial report");
@@ -252,7 +273,8 @@ export const useFinancialReport = (propertyId, periodType = "MONTHLY", autoGener
           }
         );
     } else {
-      // For all properties, listen to all bills (no filter)
+        // For all properties (propertyId is null), listen to all bills (no filter)
+        // Note: This will trigger for all bills, but we'll filter in the callback if needed
       channel
         .on(
           "postgres_changes",
@@ -293,6 +315,7 @@ export const useFinancialReport = (propertyId, periodType = "MONTHLY", autoGener
     }
 
     // Subscribe to maintenance changes with property filter
+      // Maintenance table has property_id, so we can filter directly
     if (propertyId) {
       channel
         .on(
@@ -350,7 +373,8 @@ export const useFinancialReport = (propertyId, periodType = "MONTHLY", autoGener
     }
 
     // Subscribe to bill_items changes
-    // Note: bill_items don't have property_id, so we need to listen to all and filter in callback
+      // Note: bill_items don't have property_id or room_id, so we need to listen to all
+      // This is a limitation - we'll refresh anyway but it's less efficient
     channel.on(
       "postgres_changes",
       {
@@ -359,8 +383,8 @@ export const useFinancialReport = (propertyId, periodType = "MONTHLY", autoGener
         table: "bill_items",
       },
       async (payload) => {
-        // For bill_items, we need to check the bill's property_id
-        // This is a limitation - we'll refresh anyway but it's less efficient
+          // For bill_items, we can't filter by property/room in the subscription
+          // We'll refresh anyway - the debounce will prevent excessive calls
         console.log("🔔 REALTIME: Bill item changed, refreshing financial report");
         debouncedRefetch();
       }
@@ -405,6 +429,10 @@ export const useFinancialReport = (propertyId, periodType = "MONTHLY", autoGener
           console.error("❌ Financial report realtime error");
         }
       });
+    };
+
+    // Setup the subscription
+    setupRealtimeSubscription();
 
     // Cleanup subscription on unmount
     return () => {

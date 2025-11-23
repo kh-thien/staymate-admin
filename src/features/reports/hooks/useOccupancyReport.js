@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { reportService } from "../services/reportService";
+import { occupancyReportService } from "../services/occupancyReportService";
 import { supabase } from "../../../core/data/remote/supabase";
 
 export const useOccupancyReport = (propertyId, limit = 30, autoGenerate = true) => {
@@ -334,11 +335,34 @@ export const useOccupancyReport = (propertyId, limit = 30, autoGenerate = true) 
     }
   };
 
+  // Get trend data from contracts (more accurate than report_date)
+  const [trendData, setTrendData] = useState(null);
+  const [trendLoading, setTrendLoading] = useState(false);
+
+  const fetchTrendData = useCallback(async () => {
+    try {
+      setTrendLoading(true);
+      const trend = await occupancyReportService.getOccupancyTrend(propertyId, 12);
+      setTrendData(trend);
+    } catch (err) {
+      console.error("Error fetching occupancy trend:", err);
+      setTrendData([]);
+    } finally {
+      setTrendLoading(false);
+    }
+  }, [propertyId]);
+
+  useEffect(() => {
+    fetchTrendData();
+  }, [fetchTrendData]);
+
   return {
     data,
     loading,
     error,
     generateReport,
     refresh,
+    trendData, // New: trend data calculated from contracts.start_date
+    trendLoading,
   };
 };

@@ -21,7 +21,7 @@ import {
 } from "@heroicons/react/24/outline";
 import TooltipInfo from "./TooltipInfo";
 
-const OccupancyReportChart = ({ data, loading, error, compact = false }) => {
+const OccupancyReportChart = ({ data, loading, error, compact = false, trendData: externalTrendData = null }) => {
   // Validate props first
   const safeLoading = loading === true;
   const safeError = error !== null && error !== undefined ? error : null;
@@ -82,7 +82,45 @@ const OccupancyReportChart = ({ data, loading, error, compact = false }) => {
   }, [latestData]);
 
   // Memoize trend data for line/bar charts - MUST be called before early returns
+  // Priority: Use external trendData (from contracts.start_date) if available, otherwise fallback to report_date
   const trendData = useMemo(() => {
+    // If external trendData is provided (calculated from contracts.start_date), use it
+    if (externalTrendData && Array.isArray(externalTrendData) && externalTrendData.length > 0) {
+      try {
+        return externalTrendData.map((item) => {
+          try {
+            if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
+            
+            const date = item.date ? new Date(item.date) : new Date();
+            if (isNaN(date.getTime())) return null;
+            
+            return {
+              date: item.month || date.toLocaleDateString("vi-VN", {
+                month: "short",
+                year: "numeric",
+              }),
+              fullDate: date.toLocaleDateString("vi-VN", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              }),
+              occupancyRate: parseFloat(item.occupancyRate || 0) || 0,
+              occupied: parseInt(item.occupied || 0) || 0,
+              vacant: parseInt(item.vacant || 0) || 0,
+              total: parseInt(item.total || 0) || 0,
+            };
+          } catch (itemError) {
+            console.error("Error processing trend item:", itemError, item);
+            return null;
+          }
+        }).filter(Boolean);
+      } catch (e) {
+        console.error("Error processing external trend data:", e);
+        // Fallback to report_date data
+      }
+    }
+    
+    // Fallback: Use report_date from occupancy_summary (old method)
     if (!safeData || safeData.length === 0) return [];
     try {
       return safeData.slice(0, 12).reverse().map((item) => {
@@ -95,6 +133,11 @@ const OccupancyReportChart = ({ data, loading, error, compact = false }) => {
             date: reportDate.toLocaleDateString("vi-VN", {
               month: "short",
               day: "numeric",
+            }),
+            fullDate: reportDate.toLocaleDateString("vi-VN", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
             }),
             occupancyRate: parseFloat(item.occupancy_rate || 0) || 0,
             occupied: parseInt(item.occupied_rooms || 0) || 0,
@@ -110,7 +153,7 @@ const OccupancyReportChart = ({ data, loading, error, compact = false }) => {
       console.error("Error processing trend data:", e);
       return [];
     }
-  }, [safeData]);
+  }, [safeData, externalTrendData]);
 
   if (safeLoading) {
     try {

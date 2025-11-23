@@ -573,6 +573,7 @@ const Reports = () => {
                 loading={false}
                 error={null}
                 compact={true}
+                trendData={occupancyReport.trendData}
               />
             ) : (
               <OccupancyReportChart
@@ -580,6 +581,7 @@ const Reports = () => {
                 loading={false}
                 error={null}
                 compact={true}
+                trendData={occupancyReport.trendData}
               />
             )}
           </div>
@@ -650,6 +652,7 @@ const Reports = () => {
             data={occupancyReport.data}
             loading={occupancyReport.loading}
             error={occupancyReport.error}
+            trendData={occupancyReport.trendData}
           />
         );
       case "maintenance":
