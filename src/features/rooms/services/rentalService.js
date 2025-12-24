@@ -1,5 +1,6 @@
 import { supabase } from "../../../core/data/remote/supabase";
 import { contractFileService } from "./contractFileService";
+import { chatService } from "../../chat/services/chatService";
 
 // Generate contract number with format: HD{YYYY}{MM}{DD}{NNNN}
 const generateContractNumber = async () => {
@@ -89,14 +90,20 @@ export const rentalService = {
         tenantId = updatedTenant.id;
       } else {
         // Create new tenant - loại bỏ move_in_date và move_out_date
-        const { move_in_date, move_out_date, ...tenantDataWithoutDates } = tenant;
-        
+        const { move_in_date, move_out_date, ...tenantDataWithoutDates } =
+          tenant;
+
         // Lấy user ID từ Supabase auth để set created_by (required bởi RLS)
-        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+        const {
+          data: { user: authUser },
+          error: authError,
+        } = await supabase.auth.getUser();
         if (authError || !authUser) {
-          throw new Error("Không thể xác thực người dùng. Vui lòng đăng nhập lại.");
+          throw new Error(
+            "Không thể xác thực người dùng. Vui lòng đăng nhập lại."
+          );
         }
-        
+
         const tenantData = {
           ...tenantDataWithoutDates,
           room_id: room_id,
@@ -157,14 +164,16 @@ export const rentalService = {
       // Step 4: Get landlord_id from property owner
       const { data: roomData, error: roomDataError } = await supabase
         .from("rooms")
-        .select(`
+        .select(
+          `
           id,
           property_id,
           properties!inner(
             id,
             owner_id
           )
-        `)
+        `
+        )
         .eq("id", room_id)
         .single();
 
@@ -226,6 +235,36 @@ export const rentalService = {
         .eq("id", room_id);
 
       if (roomError) throw roomError;
+
+      // Step 8: Create chat room for landlord and tenant communication
+      // Only create if tenant has user_id (account is linked)
+      try {
+        // Get tenant info to check if they have user_id
+        const { data: tenantInfo } = await supabase
+          .from("tenants")
+          .select("user_id, fullname")
+          .eq("id", tenantId)
+          .single();
+
+        if (tenantInfo?.user_id) {
+          // Tenant has linked account, create chat room
+          await chatService.createChatRoomWithTenant(tenantId, landlordId);
+          console.log(
+            "✅ Chat room created successfully for tenant:",
+            tenantInfo.fullname
+          );
+        } else {
+          console.log(
+            "ℹ️ Tenant account not linked yet, chat room will be created when tenant accepts invitation"
+          );
+        }
+      } catch (chatError) {
+        // Don't fail the whole rental creation if chat room creation fails
+        console.warn(
+          "⚠️ Warning: Could not create chat room:",
+          chatError.message
+        );
+      }
 
       return {
         success: true,

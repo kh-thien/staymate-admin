@@ -492,6 +492,7 @@ export const chatService = {
         .select(
           `
           id,
+          user_id,
           fullname,
           email,
           phone,
@@ -513,6 +514,13 @@ export const chatService = {
         .single();
 
       if (tenantError) throw tenantError;
+
+      // ⚠️ KIỂM TRA QUAN TRỌNG: Tenant phải có user_id (tài khoản đã được kích hoạt)
+      if (!tenant.user_id) {
+        throw new Error(
+          "Tenant chưa kích hoạt tài khoản. Chat room sẽ được tạo sau khi tenant accept invitation."
+        );
+      }
 
       // Kiểm tra tenant có room không
       if (!tenant.rooms || tenant.rooms.length === 0) {
@@ -537,6 +545,7 @@ export const chatService = {
       if (createRoomError) throw createRoomError;
 
       // Thêm participants
+      // ⚠️ QUAN TRỌNG: Dùng tenant.user_id (user account), KHÔNG PHẢI tenantId (tenant record)
       const participants = [
         {
           room_id: newRoom.id,
@@ -545,7 +554,7 @@ export const chatService = {
         },
         {
           room_id: newRoom.id,
-          user_id: tenantId,
+          user_id: tenant.user_id, // ✅ Dùng user_id từ tenant, không phải tenantId
           user_type: "TENANT",
         },
       ];

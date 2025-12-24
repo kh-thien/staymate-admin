@@ -1,5 +1,6 @@
 import { supabase } from "../../../core/data/remote/supabase";
 import { toast } from "react-toastify";
+import { chatService } from "../../chat/services/chatService";
 
 // Utility function để generate token
 const generateInvitationToken = () => {
@@ -241,7 +242,7 @@ export const tenantInvitationService = {
       // Sử dụng StayMate Server
       try {
         // Đảm bảo URL có trailing slash và endpoint đúng
-        const baseUrl = serverUrl.endsWith('/') ? serverUrl : `${serverUrl}/`;
+        const baseUrl = serverUrl.endsWith("/") ? serverUrl : `${serverUrl}/`;
         const apiEndpoint = `${baseUrl}api/send-invitation-email`;
 
         console.log("📡 Calling StayMate Server:", apiEndpoint);
@@ -261,24 +262,26 @@ export const tenantInvitationService = {
 
         if (!response.ok) {
           const errorText = await response.text();
-          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+          throw new Error(
+            `HTTP error! status: ${response.status}, message: ${errorText}`
+          );
         }
 
         const result = await response.json();
         console.log("✅ Email sent via StayMate Server:", result);
-        
+
         // Hiển thị thông báo thành công
         toast.success(`📧 Email đã được gửi thành công đến ${email}!`, {
           position: "top-right",
           autoClose: 5000,
         });
-        
+
         return { success: true, method: "staymate-server", data: result };
       } catch (serviceError) {
         console.error("❌ StayMate Server error:", serviceError);
-        
+
         const expiresAtFormatted = new Date(expiresAt).toLocaleString("vi-VN");
-        
+
         // Fallback: Hiển thị thông tin trong toast
         toast.error(
           `Không thể gửi email tự động. Vui lòng copy link và gửi thủ công.`,
@@ -287,7 +290,7 @@ export const tenantInvitationService = {
             autoClose: 6000,
           }
         );
-        
+
         // Hiển thị thông tin link trong toast info
         setTimeout(() => {
           toast.info(
@@ -298,20 +301,27 @@ export const tenantInvitationService = {
             }
           );
         }, 500);
-        
-        // Copy link to clipboard
-        navigator.clipboard.writeText(invitationUrl).then(() => {
-          setTimeout(() => {
-            toast.success("Đã copy link vào clipboard", {
-              position: "top-right",
-              autoClose: 3000,
-            });
-          }, 1500);
-        }).catch(() => {
-          // Clipboard API không available, bỏ qua
-        });
 
-        return { success: false, method: "fallback", error: serviceError.message };
+        // Copy link to clipboard
+        navigator.clipboard
+          .writeText(invitationUrl)
+          .then(() => {
+            setTimeout(() => {
+              toast.success("Đã copy link vào clipboard", {
+                position: "top-right",
+                autoClose: 3000,
+              });
+            }, 1500);
+          })
+          .catch(() => {
+            // Clipboard API không available, bỏ qua
+          });
+
+        return {
+          success: false,
+          method: "fallback",
+          error: serviceError.message,
+        };
       }
     } catch (error) {
       console.error("Error sending email:", error);
@@ -341,6 +351,70 @@ export const tenantInvitationService = {
         throw new Error(
           result?.error || "Lời mời không hợp lệ hoặc đã hết hạn"
         );
+      }
+
+      // ✅ TỰ ĐỘNG TẠO CHAT ROOM sau khi accept invitation thành công
+      if (result.tenant && result.tenant.id) {
+        try {
+          // Lấy thông tin tenant và contract để tìm landlord_id
+          const { data: tenantData, error: tenantError } = await supabase
+            .from("tenants")
+            .select(
+              `
+              id,
+              user_id,
+              fullname,
+              room_id,
+              rooms!room_id(
+                id,
+                property_id,
+                properties!property_id(
+                  id,
+                  owner_id
+                )
+              )
+            `
+            )
+            .eq("id", result.tenant.id)
+            .single();
+
+          if (
+            !tenantError &&
+            tenantData?.user_id &&
+            tenantData?.rooms?.properties?.owner_id
+          ) {
+            // Tenant đã có user_id và có landlord → tạo chat room
+            const landlordId = tenantData.rooms.properties.owner_id;
+
+            await chatService.createChatRoomWithTenant(
+              tenantData.id,
+              landlordId
+            );
+
+            console.log(
+              "✅ Chat room created after tenant accepted invitation:",
+              {
+                tenantId: tenantData.id,
+                tenantName: tenantData.fullname,
+                landlordId: landlordId,
+              }
+            );
+          } else {
+            console.log("ℹ️ Cannot create chat room yet:", {
+              hasUserId: !!tenantData?.user_id,
+              hasLandlord: !!tenantData?.rooms?.properties?.owner_id,
+              reason: !tenantData?.user_id
+                ? "Tenant user_id not set"
+                : "No landlord found",
+            });
+          }
+        } catch (chatError) {
+          // Không fail invitation nếu chat room creation lỗi
+          console.warn(
+            "⚠️ Warning: Could not create chat room after invitation acceptance:",
+            chatError.message
+          );
+        }
       }
 
       return {

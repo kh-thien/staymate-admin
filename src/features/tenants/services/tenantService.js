@@ -32,12 +32,14 @@ export const tenantService = {
         note: tenantFields.note || null,
         // Convert empty room_id to null
         // active_in_room sẽ được tự động cập nhật bởi trigger dựa trên room_id
-        room_id: tenantFields.room_id && tenantFields.room_id.trim() !== "" 
-          ? tenantFields.room_id 
-          : null,
+        room_id:
+          tenantFields.room_id && tenantFields.room_id.trim() !== ""
+            ? tenantFields.room_id
+            : null,
         // is_active chỉ dùng cho soft delete, không phụ thuộc vào room_id
         // active_in_room sẽ được trigger tự động set dựa trên room_id
-        is_active: tenantFields.is_active !== undefined ? tenantFields.is_active : true,
+        is_active:
+          tenantFields.is_active !== undefined ? tenantFields.is_active : true,
         // Account status
         account_status: tenantFields.account_status || "PENDING",
         created_by: tenantFields.created_by,
@@ -76,10 +78,7 @@ export const tenantService = {
             is_primary: true,
           });
         } catch (contactError) {
-          console.error(
-            "Error creating emergency contact:",
-            contactError
-          );
+          console.error("Error creating emergency contact:", contactError);
           // Throw error để user biết emergency contact không được tạo
           // Nhưng tenant đã được tạo thành công
           throw new Error(
@@ -114,7 +113,7 @@ export const tenantService = {
         if (propsError) throw propsError;
 
         const propertyIds = (userProperties || []).map((p) => p.id);
-        
+
         if (propertyIds.length > 0) {
           // Get all rooms for these properties
           const { data: userRooms, error: roomsError } = await supabase
@@ -160,7 +159,7 @@ export const tenantService = {
       } else if (filters.status === "inactive") {
         query = query.eq("active_in_room", false);
       }
-      
+
       // Luôn filter ra các tenant đã bị soft delete (is_active = false)
       query = query.eq("is_active", true);
 
@@ -189,31 +188,36 @@ export const tenantService = {
 
       // Filter by property after getting data (client-side filter)
       let filteredData = data || [];
-      
+
       // Also include tenants without room_id created by user (if created_by filter is provided)
       // This ensures we show tenants not yet assigned to a room
       if (filters.created_by && roomIds && roomIds.length > 0) {
         // Fetch tenants without room_id created by user
-        const { data: tenantsWithoutRoom, error: tenantsWithoutRoomError } = await supabase
-          .from("tenants")
-          .select(`
+        const { data: tenantsWithoutRoom, error: tenantsWithoutRoomError } =
+          await supabase
+            .from("tenants")
+            .select(
+              `
             *,
             rooms!room_id(code, name, property_id, properties(name, address)),
             tenant_emergency_contacts(*)
-          `)
-          .eq("created_by", filters.created_by)
-          .is("room_id", null)
-          .is("deleted_at", null)
-          .eq("is_active", true);
-        
+          `
+            )
+            .eq("created_by", filters.created_by)
+            .is("room_id", null)
+            .is("deleted_at", null)
+            .eq("is_active", true);
+
         if (!tenantsWithoutRoomError && tenantsWithoutRoom) {
           // Merge with existing data (avoid duplicates)
-          const existingIds = new Set(filteredData.map(t => t.id));
-          const newTenants = tenantsWithoutRoom.filter(t => !existingIds.has(t.id));
+          const existingIds = new Set(filteredData.map((t) => t.id));
+          const newTenants = tenantsWithoutRoom.filter(
+            (t) => !existingIds.has(t.id)
+          );
           filteredData = [...filteredData, ...newTenants];
         }
       }
-      
+
       if (filters.property && filters.property !== "all") {
         filteredData = filteredData.filter(
           (tenant) =>
@@ -285,6 +289,7 @@ export const tenantService = {
         emergency_contact_relationship,
         emergency_contact_email,
         emergency_contact_address,
+        room_id, // Tách room_id ra để xử lý riêng
         ...tenantFields
       } = updateData;
 
@@ -299,17 +304,23 @@ export const tenantService = {
         occupation: tenantFields.occupation || null,
         id_number: tenantFields.id_number || null,
         note: tenantFields.note || null,
-        // Convert empty room_id to null
-        // active_in_room sẽ được tự động cập nhật bởi trigger dựa trên room_id
-        room_id: tenantFields.room_id && tenantFields.room_id.trim() !== "" 
-          ? tenantFields.room_id 
-          : null,
         // is_active chỉ dùng cho soft delete, không phụ thuộc vào room_id
         // active_in_room sẽ được trigger tự động set dựa trên room_id
-        is_active: tenantFields.is_active !== undefined ? tenantFields.is_active : undefined,
+        is_active:
+          tenantFields.is_active !== undefined
+            ? tenantFields.is_active
+            : undefined,
         // Account status
         account_status: tenantFields.account_status || "PENDING",
       };
+
+      // CHỈ CẬP NHẬT room_id khi nó được EXPLICITLY truyền vào updateData
+      // Không cập nhật room_id khi chỉ update thông tin cá nhân (email, phone, etc.)
+      // Điều này tránh việc trigger tự động set active_in_room = false
+      if (room_id !== undefined) {
+        processedData.room_id =
+          room_id && room_id.trim() !== "" ? room_id : null;
+      }
 
       const { data, error } = await supabase
         .from("tenants")
@@ -329,8 +340,10 @@ export const tenantService = {
       // Cập nhật hoặc tạo emergency contact nếu có dữ liệu
       // Chỉ cập nhật/tạo nếu có ít nhất contact_name và phone (required fields)
       if (
-        (emergency_contact_name !== undefined && emergency_contact_name?.trim() !== "") ||
-        (emergency_contact_phone !== undefined && emergency_contact_phone?.trim() !== "")
+        (emergency_contact_name !== undefined &&
+          emergency_contact_name?.trim() !== "") ||
+        (emergency_contact_phone !== undefined &&
+          emergency_contact_phone?.trim() !== "")
       ) {
         // Nếu có ít nhất một trong hai field, cần cả hai
         if (
@@ -351,10 +364,7 @@ export const tenantService = {
               }
             );
           } catch (contactError) {
-            console.error(
-              "Error updating emergency contact:",
-              contactError
-            );
+            console.error("Error updating emergency contact:", contactError);
             throw new Error(
               `Không thể cập nhật thông tin liên hệ khẩn cấp: ${contactError.message}`
             );
@@ -541,7 +551,9 @@ export const tenantService = {
         { count: inactiveCount },
       ] = await Promise.all([
         // Total tenants (chưa bị soft delete)
-        baseQuery(supabase.from("tenants").select("id", { count: "exact", head: true })),
+        baseQuery(
+          supabase.from("tenants").select("id", { count: "exact", head: true })
+        ),
         // Active tenants (đang ở trong room)
         baseQuery(
           supabase
