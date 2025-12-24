@@ -89,7 +89,7 @@ export const chatService = {
                 .select("userid, full_name, avatar_url, email, role")
                 .eq("userid", otherParticipant.user_id)
                 .single();
-              
+
               if (userData) {
                 tenantUser = userData;
               } else {
@@ -133,11 +133,11 @@ export const chatService = {
             unreadCount = count || 0;
           }
 
-          // Xác định status: 
+          // Xác định status:
           // - ACTIVE: Room đã được kích hoạt HOẶC có tenant user (tenant đã accept invitation)
           // - PENDING: Room chưa được kích hoạt VÀ không có tenant user (tenant chưa accept invitation)
           const isActive = room.is_activated || tenantUser !== null;
-          
+
           return {
             id: room.id,
             name: room.name,
@@ -150,9 +150,7 @@ export const chatService = {
             unreadCount: unreadCount,
             updatedAt: room.updated_at,
             status: isActive ? "ACTIVE" : "PENDING",
-            displayName: isActive
-              ? room.name
-              : `${room.name} (Chờ kích hoạt)`,
+            displayName: isActive ? room.name : `${room.name} (Chờ kích hoạt)`,
             roomCode: room.room_code,
             contractId: room.contract_id,
           };
@@ -174,11 +172,6 @@ export const chatService = {
         .select(
           `
           *,
-          message_reactions(
-            id,
-            user_id,
-            reaction
-          ),
           reply_to_message:chat_messages!reply_to(
             id,
             content,
