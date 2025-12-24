@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { XMarkIcon, UserIcon, HomeIcon, MapPinIcon } from "@heroicons/react/24/outline";
+import {
+  XMarkIcon,
+  UserIcon,
+  HomeIcon,
+  MapPinIcon,
+} from "@heroicons/react/24/outline";
 import { Modal } from "../../../core/components/ui";
 import { supabase } from "../../../core/data/remote/supabase";
 
-const ApproveMaintenanceModal = ({
-  isOpen,
-  onClose,
-  request,
-  onApprove,
-}) => {
+const ApproveMaintenanceModal = ({ isOpen, onClose, request, onApprove }) => {
   const [formData, setFormData] = useState({
     property_id: "",
     room_id: "",
@@ -37,20 +37,22 @@ const ApproveMaintenanceModal = ({
       // Determine default maintenance_type based on request
       // If request has room_id, default to ROOM, otherwise default to OTHER
       const defaultMaintenanceType = request.room_id ? "ROOM" : "OTHER";
-      
+
       // Pre-fill data from request
       setFormData({
         property_id: request.properties_id || "",
         room_id: request.room_id || "",
-        title: request.description 
-          ? `Yêu cầu từ tenant: ${request.description.substring(0, 50)}${request.description.length > 50 ? '...' : ''}`
+        title: request.description
+          ? `Yêu cầu từ người thuê: ${request.description.substring(0, 60)}${
+              request.description.length > 60 ? "..." : ""
+            }`
           : "",
         description: request.description || "",
         priority: "MEDIUM",
         maintenance_type: defaultMaintenanceType,
       });
       setErrors({});
-      
+
       // Load rooms if property_id exists
       if (request.properties_id) {
         loadRooms(request.properties_id);
@@ -102,7 +104,7 @@ const ApproveMaintenanceModal = ({
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     // Handle maintenance_type change
     if (name === "maintenance_type") {
       setFormData((prev) => ({
@@ -133,7 +135,7 @@ const ApproveMaintenanceModal = ({
         [name]: value,
       }));
     }
-    
+
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors((prev) => ({
@@ -355,7 +357,8 @@ const ApproveMaintenanceModal = ({
                   <option value="">Chọn bất động sản</option>
                   {properties.map((property) => (
                     <option key={property.id} value={property.id}>
-                      {property.name} {property.address ? `- ${property.address}` : ""}
+                      {property.name}{" "}
+                      {property.address ? `- ${property.address}` : ""}
                     </option>
                   ))}
                 </select>
@@ -379,7 +382,11 @@ const ApproveMaintenanceModal = ({
                     disabled={!formData.property_id || loadingRooms}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       errors.room_id ? "border-red-500" : "border-gray-300"
-                    } ${!formData.property_id || loadingRooms ? "bg-gray-100 cursor-not-allowed" : ""}`}
+                    } ${
+                      !formData.property_id || loadingRooms
+                        ? "bg-gray-100 cursor-not-allowed"
+                        : ""
+                    }`}
                   >
                     <option value="">
                       {loadingRooms
@@ -464,9 +471,7 @@ const ApproveMaintenanceModal = ({
                   <option value="URGENT">Khẩn cấp</option>
                 </select>
                 {errors.priority && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {errors.priority}
-                  </p>
+                  <p className="mt-1 text-sm text-red-600">{errors.priority}</p>
                 )}
               </div>
             </div>
@@ -497,4 +502,3 @@ const ApproveMaintenanceModal = ({
 };
 
 export default ApproveMaintenanceModal;
-
